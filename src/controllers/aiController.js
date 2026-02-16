@@ -529,77 +529,7 @@ export const chatWithAI = asyncHandler(async (req, res) => {
     }
   }
 });
-/**
- * @desc Analyze Aadhaar Card using Gemini Vision
- * @route POST /api/ai/analyze-aadhaar
- * @access Public
- */
-export const analyzeAadhaar = asyncHandler(async (req, res) => {
-  const { imageUrl, userName } = req.body;
-
-  if (!imageUrl) {
-    res.status(400);
-    throw new Error("Aadhaar image URL is required");
-  }
-
-  try {
-    const genAI = getGeminiClient();
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-    // Fetch image as buffer
-    const response = await nodeFetch(imageUrl);
-    const buffer = await response.arrayBuffer();
-    const base64Image = Buffer.from(buffer).toString("base64");
-
-    const prompt = `
-      You are an expert Identity Audit AI. Analyze this Aadhaar card image.
-      Candidate Name in Profile: "${userName}"
-      
-      Task:
-      1. Extract the Full Name from the Aadhaar card.
-      2. Check if the Aadhaar Name matches the Candidate Name (Partial match is OK if middle names are missing).
-      3. Look for signs of digital tampering, photoshop, or fake templates (e.g., mismatched fonts, weird shadows, overlapping text).
-      4. Check if the card is a physical photo or a digital screenshot.
-      
-      Return ONLY valid JSON:
-      {
-        "extractedName": "string",
-        "isNameMatch": boolean,
-        "isOriginal": boolean,
-        "trustScore": number (0-100),
-        "auditReport": "1-2 sentence detailed observation",
-        "redFlags": ["flag 1", "flag 2"] (if any)
-      }
-    `;
-
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          data: base64Image,
-          mimeType: "image/jpeg",
-        },
-      },
-    ]);
-
-    const text = result.response.text();
-    const cleanText = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    const audit = JSON.parse(cleanText);
-
-    res.json(audit);
-
-  } catch (error) {
-    console.error("Gemini Audit Error:", error);
-    res.status(500).json({
-      extractedName: "Unknown",
-      isNameMatch: false,
-      isOriginal: true,
-      trustScore: 50,
-      auditReport: "AI Vision Service is currently busy. Manual review recommended.",
-      redFlags: ["Cloud Audit Unavailable"]
-    });
-  }
-});
+/* analyzeAadhaar removed */
 
 /**
  * @desc Enhance CV with AI suggestions
@@ -719,3 +649,51 @@ export const enhanceCV = asyncHandler(async (req, res) => {
     });
   }
 });
+/**
+ * @desc Generate Job-Specific Technical Assessment
+ * @req { title, description }
+ */
+export const generateHiringTest = async (jobTitle, jobDescription) => {
+  try {
+    const groq = getGroqClient();
+    const prompt = `
+      You are a Senior Technical Interviewer. Generate a high-integrity technical assessment for the role: "${jobTitle}".
+      Job Description: "${jobDescription.substring(0, 500)}..."
+
+      Generate 10 challenging Multiple Choice Questions (MCQs) that strictly test the core skills mentioned in the job description.
+      
+      Requirements:
+      - 4 options per question.
+      - 1 correct answer.
+      - Mix of conceptual and code-output questions.
+      
+      Return ONLY a JSON array:
+      [
+        {
+          "question": "text",
+          "options": ["A", "B", "C", "D"],
+          "answer": "Exact text of correct option"
+        }
+      ]
+      No preamble, no markdown.
+    `;
+
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.4,
+    });
+
+    const text = completion.choices[0]?.message?.content || "";
+    const cleanText = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    return JSON.parse(cleanText);
+  } catch (error) {
+    console.error("AI Hiring Test Gen Error:", error);
+    // Fallback simple questions
+    return Array.from({ length: 10 }).map((_, i) => ({
+      question: `Technical Concept Question ${i+1} for ${jobTitle}`,
+      options: ["Highly Efficient", "Scalable", "Maintainable", "None of these"],
+      answer: "Scalable"
+    }));
+  }
+};

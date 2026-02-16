@@ -11,6 +11,7 @@ import {
   updateProfile,
   listNotifications
 } from "../controllers/rpanelController.js";
+import { sendHiringAssessment } from "../controllers/hiringAssessmentController.js";
 
 const router = express.Router();
 
@@ -52,6 +53,16 @@ router.patch(
   protect,
   authorize(["recruiter"]),
   updateApplicationStatus
+);
+
+/* ============================
+   Send Hiring Assessment
+=============================== */
+router.post(
+  "/applications/:applicationId/assessment/send",
+  protect,
+  authorize(["recruiter"]),
+  sendHiringAssessment
 );
 
 /* ============================

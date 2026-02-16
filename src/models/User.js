@@ -9,6 +9,15 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true, minlength: 6, select: false },
     mobile: { type: String, default: "" },
     avatar: { type: String, default: "" },
+    bio: { type: String, default: "" }, // ✨ New: Bio for all users
+    
+    // ✨ New: Universal Social Links
+    socials: {
+        github: { type: String, default: "" },
+        linkedin: { type: String, default: "" },
+        website: { type: String, default: "" },
+        twitter: { type: String, default: "" }
+    },
 
     /* 🏢 Company Info (Recruiter Extended Fields) */
     companyWebsite: { type: String, default: "" },
@@ -20,15 +29,11 @@ const userSchema = new mongoose.Schema(
     },
 
     /* 🆔 Identity Verification (Recruiter KYC) */
-    aadhaarVerification: {
-      maskedNumber: { type: String, default: "" }, // XXXX-XXXX-1234 (last 4 digits only)
-      documentUrl: { type: String, default: "" }, // Temporary Cloudinary URL
+    identityVerification: {
+      pan: { type: String, default: "" }, 
+      gst: { type: String, default: "" },
       verified: { type: Boolean, default: false },
-      verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // Admin who verified
-      verifiedAt: Date,
-      rejectionReason: { type: String, default: "" },
-      pan: { type: String, default: "" }, // ✨ New: Optional PAN
-      gst: { type: String, default: "" }   // ✨ New: Optional GST
+      verifiedAt: Date
     },
     
     upiVerification: {

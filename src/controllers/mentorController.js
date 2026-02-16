@@ -258,6 +258,20 @@ export const approveMentor = async (req, res) => {
       mentor.allowedRoles.push("mentor");
     }
 
+    // ✨ Initialize Default Services if empty
+    if (!mentor.mentorProfile.services || mentor.mentorProfile.services.length === 0) {
+      mentor.mentorProfile.services = [
+        {
+          title: "1:1 Strategy Call",
+          type: "1:1 Call",
+          price: 500,
+          duration: 30,
+          description: "A deep dive into your career goals, technical challenges, or project reviews.",
+          isActive: true
+        }
+      ];
+    }
+
     await mentor.save();
 
     // 🧾 Audit Log (with snapshots)

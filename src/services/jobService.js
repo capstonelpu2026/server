@@ -94,3 +94,21 @@ export const findJobById = async (id) => {
         return null;
     }
 }
+// @desc    Find jobs by Recruiter ID
+export const getJobsByRecruiter = async (recruiterId) => {
+    try {
+        const jobs = await Job.find({ postedBy: recruiterId, status: { $in: ['active', 'approved'] } })
+            .populate("postedBy", "orgName avatar")
+            .sort({ createdAt: -1 });
+
+        return jobs.map(job => ({
+            ...job.toObject(),
+            id: job._id,
+            company: job.recruiter?.orgName || "Top Company",
+            logo: job.recruiter?.avatar || "",
+            isNew: (new Date() - new Date(job.createdAt)) < (7 * 24 * 60 * 60 * 1000)
+        }));
+    } catch (error) {
+        return [];
+    }
+}

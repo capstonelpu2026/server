@@ -14,7 +14,7 @@ const router = express.Router();
 ===================================================== */
 router.get("/jobs", protect, authorize(["admin", "superadmin"]), async (req, res) => {
   try {
-    const jobs = await Job.find().populate("postedBy", "name email role");
+    const jobs = await Job.find().populate("postedBy", "name email role orgName mobile").populate("applicants");
     res.json(jobs);
   } catch (err) {
     console.error("Error fetching jobs:", err);

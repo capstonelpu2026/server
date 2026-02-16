@@ -58,6 +58,10 @@ router.put("/me", protect, async (req, res) => {
     if (req.body.skills) user.skills = req.body.skills;
     if (req.body.openToTeaming !== undefined) user.openToTeaming = req.body.openToTeaming;
 
+    // ✨ New: Bio & Socials
+    if (req.body.bio !== undefined) user.bio = req.body.bio;
+    if (req.body.socials) user.socials = req.body.socials;
+
     // Unstop Profile Fields
     if (req.body.education) user.education = req.body.education;
     if (req.body.workExperience) user.workExperience = req.body.workExperience;

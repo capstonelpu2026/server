@@ -3,7 +3,15 @@ import Job from "../models/Job.js";
 import Application from "../models/Application.js";
 import cloudinary from "../utils/cloudinary.js";
 import fs from "fs";
-import { getJobs, getInternships, findJobById } from "../services/jobService.js";
+import { getJobs, getInternships, findJobById, getJobsByRecruiter } from "../services/jobService.js";
+
+/* ============================
+   GET JOBS BY RECRUITER
+============================ */
+export const getRecruiterJobs = asyncHandler(async (req, res) => {
+  const jobs = await getJobsByRecruiter(req.params.id);
+  res.json(jobs);
+});
 
 /* ============================
    GET JOBS

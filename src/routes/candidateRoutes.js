@@ -7,8 +7,21 @@ import User from "../models/User.js";
 import Application from "../models/Application.js";
 import Job from "../models/Job.js";
 import { notify } from "../utils/notify.js";
+import { 
+  getHiringAssessment, 
+  submitHiringAssessment, 
+  reportAssessmentViolation 
+} from "../controllers/hiringAssessmentController.js";
 
 const router = express.Router();
+
+/**
+ * Technical Assessment Routes (Candidate)
+ */
+router.get("/applications/:applicationId/assessment", protect, getHiringAssessment);
+router.post("/applications/:applicationId/assessment/submit", protect, submitHiringAssessment);
+router.patch("/applications/:applicationId/assessment/violation", protect, reportAssessmentViolation);
+
 
 /* =========================
    GET PROFILE (Enhanced)

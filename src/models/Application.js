@@ -8,8 +8,34 @@ const ApplicationSchema = new mongoose.Schema({
   coverLetter: { type: String },
   status: {
     type: String,
-    enum: ["applied", "shortlisted", "rejected", "hired"],
+    enum: ["applied", "shortlisted", "interviewing", "offered", "rejected", "hired"],
     default: "applied",
+  },
+  interviewDetails: {
+    date: { type: Date },
+    time: { type: String },
+    link: { type: String },
+    location: { type: String }
+  },
+  offerDetails: {
+    salary: { type: String },
+    joinDate: { type: Date },
+    additionalTerms: { type: String },
+    status: { type: String, enum: ["pending", "accepted", "declined"], default: "pending" }
+  },
+  rejectionFeedback: { type: String },
+  assessment: {
+    status: { type: String, enum: ["none", "sent", "completed"], default: "none" },
+    questions: [{
+      question: String,
+      options: [String],
+      answer: String,
+      type: { type: String, default: "mcq" }
+    }],
+    responses: [String],
+    score: { type: Number },
+    violations: { type: Number, default: 0 }, // Track tab switching
+    completedAt: { type: Date }
   },
   atsScore: { type: Number },
   atsVerdict: { type: String },

@@ -216,27 +216,29 @@ export const updateApplicationStatus = async (req, res) => {
   try {
     const recruiterId = toObjectId(req.user._id);
     const applicationId = toObjectId(req.params.applicationId);
-    const { status } = req.body;
-
+    const { status, interviewDetails, offerDetails, rejectionFeedback } = req.body;
+ 
     if (!status)
       return res.status(400).json({ message: "Missing new status" });
-
+ 
     const application = await Application.findById(applicationId)
       .populate("candidate", "email name")
       .populate("job", "postedBy title")
       .lean();
-
+ 
     if (!application)
       return res.status(404).json({ message: "Application not found" });
-
+ 
     if (String(application.job.postedBy) !== String(recruiterId)) {
       return res.status(403).json({ message: "Not authorized" });
     }
-
-    await Application.findByIdAndUpdate(applicationId, {
-      status,
-      updatedAt: new Date(),
-    });
+ 
+    const updateFields = { status, updatedAt: new Date() };
+    if (interviewDetails) updateFields.interviewDetails = interviewDetails;
+    if (offerDetails) updateFields.offerDetails = offerDetails;
+    if (rejectionFeedback) updateFields.rejectionFeedback = rejectionFeedback;
+ 
+    await Application.findByIdAndUpdate(applicationId, updateFields);
 
     if (status === "hired") {
       const recruiter = await User.findById(recruiterId).select("orgName");

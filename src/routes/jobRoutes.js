@@ -5,6 +5,7 @@ import {
   getJobById,
   applyToJob,
   withdrawApplication,
+  getRecruiterJobs,
 } from "../controllers/jobController.js";
 import { protect, authorize } from "../middleware/auth.js";
 import upload from "../middleware/upload.js";
@@ -16,6 +17,7 @@ const router = express.Router();
 ========================= */
 router.get("/jobs", getJobsList);
 router.get("/internships", getInternshipsList);
+router.get("/recruiter/:id/jobs", getRecruiterJobs);
 
 /* =========================
    SINGLE JOB ROUTES (LAST)

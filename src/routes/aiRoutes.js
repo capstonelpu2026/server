@@ -6,7 +6,6 @@ import {
   generateJobDescription,
   generateCoverLetter,
   checkJobEligibility,
-  analyzeAadhaar,
   enhanceCV,
   generateQuiz,
   analyzeAudioAnswer
@@ -29,7 +28,7 @@ router.post("/interview/analyze-audio", upload.single("audio"), analyzeAudioAnsw
 router.post("/job-description", generateJobDescription);
 router.post("/cover-letter", generateCoverLetter);
 router.post("/job-eligibility", checkJobEligibility);
-router.post("/analyze-aadhaar", analyzeAadhaar);
+/* Aadhaar analysis route removed */
 router.post("/enhance-cv", enhanceCV);
 router.post("/quiz/generate", generateQuiz);
 

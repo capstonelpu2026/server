@@ -84,8 +84,7 @@ const registerRecruiterHandler = async (req, res) => {
     const { 
        name, orgName, email, password, mobile,
        companyWebsite, designation, linkedinProfile,
-       aadhaarDocumentUrl, aadhaarLast4,
-       pan, gst // ✨ NEW: PAN and GST
+       pan, gst
     } = req.body;
     
     const normalizedEmail = (email || "").toLowerCase();
@@ -123,13 +122,11 @@ const registerRecruiterHandler = async (req, res) => {
           linkedin: linkedinProfile || ""
       },
       
-      // ⭐ NEW: Aadhaar Verification
-      aadhaarVerification: {
-        maskedNumber: aadhaarLast4 ? `XXXX-XXXX-${aadhaarLast4}` : "",
-        documentUrl: aadhaarDocumentUrl || "",
-        verified: false,
+      // ⭐ NEW: Identity Verification
+      identityVerification: {
         pan: pan || "",
-        gst: gst || ""
+        gst: gst || "",
+        verified: false
       }
     });
 
@@ -172,77 +169,7 @@ You'll be notified once an admin approves your access.
 router.post("/register-recruiter", registerRecruiterHandler);
 router.post("/register-admin", registerRecruiterHandler);
 
-/* =====================================================
-   📄 UPLOAD AADHAAR - Public (No Auth Required)
-===================================================== */
-router.post("/upload-aadhaar", upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: "aadhaar_documents",
-      resource_type: "auto",
-    });
-
-    // Cleanup local file
-    fs.unlinkSync(req.file.path);
-
-    res.json({ url: result.secure_url });
-  } catch (err) {
-    console.error("Aadhaar upload error:", err);
-    res.status(500).json({ message: "Failed to upload Aadhaar document" });
-  }
-});
-
-/* =====================================================
-   🆔 AADHAAR OTP SIMULATION (KYC)
-===================================================== */
-router.post("/aadhaar/send-otp", async (req, res) => {
-  try {
-    const { aadhaarNumber } = req.body;
-    if (!aadhaarNumber || aadhaarNumber.length !== 12) {
-      return res.status(400).json({ message: "Invalid Aadhaar Number (12 digits required)" });
-    }
-
-    // Simulate sending OTP to UIDAI linked mobile
-    const otp = "123456"; // Mock OTP for simulation
-    
-    await OTP.create({
-      email: `aadhaar-${aadhaarNumber}`,
-      otp,
-      purpose: "aadhaar-verification",
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-    });
-
-    res.json({ message: "OTP sent to your Aadhaar-linked mobile (Use 123456)" });
-  } catch (err) {
-    res.status(500).json({ message: "Aadhaar service error" });
-  }
-});
-
-router.post("/aadhaar/verify-otp", async (req, res) => {
-  try {
-    const { aadhaarNumber, otp } = req.body;
-    const record = await OTP.findOne({
-      email: `aadhaar-${aadhaarNumber}`,
-      otp,
-      purpose: "aadhaar-verification",
-    });
-
-    if (!record || record.expiresAt < new Date()) {
-      return res.status(400).json({ message: "Invalid or expired OTP" });
-    }
-
-    await OTP.deleteMany({ email: `aadhaar-${aadhaarNumber}`, purpose: "aadhaar-verification" });
-    
-    res.json({ 
-      success: true, 
-      message: "Identity Verified via UIDAI ✅",
-    });
-  } catch (err) {
-    res.status(500).json({ message: "Verification failed" });
-  }
-});
+/* Identity verification routes removed */
 
 /* =====================================================
  👑 CREATE ADMIN (SuperAdmin Only)
@@ -450,7 +377,13 @@ router.post("/send-verification-otp", otpLimiter, async (req, res) => {
     const normalizedEmail = (email || "").toLowerCase();
 
     const exists = await User.findOne({ email: normalizedEmail });
-    if (exists) return res.status(400).json({ message: "User already registered" });
+    if (exists) {
+      return res.status(400).json({ 
+        message: `Account already exists as a ${exists.role}. Please login or use a different email.`,
+        isExisting: true,
+        role: exists.role
+      });
+    }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
