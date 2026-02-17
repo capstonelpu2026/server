@@ -6,8 +6,14 @@ import AuditLog from "../models/AuditLog.js";
 import Job from "../models/Job.js";
 import Notification from "../models/Notification.js";
 import Message from "../models/Message.js";
+import Application from "../models/Application.js";
 import { sendEmail } from "../utils/sendEmail.js";
-import { candidateHiredTemplate } from "../utils/emailTemplates.js";
+import {
+  candidateHiredTemplate,
+  candidateShortlistedTemplate,
+  candidateInterviewTemplate,
+  candidateRejectedTemplate
+} from "../utils/emailTemplates.js";
 
 const toObjectId = (id) => new mongoose.Types.ObjectId(id);
 const daysAgo = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
@@ -192,15 +198,17 @@ export const listJobApplications = async (req, res) => {
       total: apps.length,
       applications: apps.map((app) => ({
         _id: app._id,
-        userId: app.candidate._id,
-        name: app.candidate.name,
-        email: app.candidate.email,
-        mobile: app.candidate.mobile,
-        resumeUrl: app.candidate.resumeUrl,
+        userId: app.candidate?._id,
+        name: app.candidate?.name,
+        email: app.candidate?.email,
+        mobile: app.candidate?.mobile,
+        resumeUrl: app.resumeUrl || app.candidate?.resumeUrl,
+        coverLetter: app.coverLetter,
         status: app.status,
         appliedAt: app.createdAt,
         atsScore: app.atsScore || 0,
-        atsVerdict: app.atsVerdict || "N/A"
+        atsVerdict: app.atsVerdict || "N/A",
+        assessment: app.assessment
       })),
     });
   } catch (err) {
@@ -240,9 +248,10 @@ export const updateApplicationStatus = async (req, res) => {
  
     await Application.findByIdAndUpdate(applicationId, updateFields);
 
+    const recruiter = await User.findById(recruiterId).select("orgName");
+    const orgName = recruiter?.orgName || "OneStop Hub";
+
     if (status === "hired") {
-      const recruiter = await User.findById(recruiterId).select("orgName");
-      const orgName = recruiter?.orgName || "OneStop Hub";
       const subject = `Congratulations! You're Hired at ${orgName}`;
       const htmlContent = candidateHiredTemplate(
         application.candidate.name,
@@ -253,9 +262,34 @@ export const updateApplicationStatus = async (req, res) => {
       await sendEmail(
         application.candidate.email,
         subject,
-        `You have been hired for ${application.job.title} at ${orgName}. Check your email for details.`,
+        `You have been hired for ${application.job.title} at ${orgName}.`,
         htmlContent
       );
+    } else if (status === "shortlisted") {
+      const subject = `Your application for ${application.job.title} has been Shortlisted!`;
+      const htmlContent = candidateShortlistedTemplate(
+        application.candidate.name,
+        application.job.title,
+        orgName
+      );
+      await sendEmail(application.candidate.email, subject, `Shortlist update for ${application.job.title}`, htmlContent);
+    } else if (status === "interviewing") {
+      const subject = `Interview Invitation: ${application.job.title} at ${orgName}`;
+      const htmlContent = candidateInterviewTemplate(
+        application.candidate.name,
+        application.job.title,
+        orgName,
+        interviewDetails
+      );
+      await sendEmail(application.candidate.email, subject, `Interview invitation for ${application.job.title}`, htmlContent);
+    } else if (status === "rejected") {
+      const subject = `Application Update: ${application.job.title}`;
+      const htmlContent = candidateRejectedTemplate(
+        application.candidate.name,
+        application.job.title,
+        orgName
+      );
+      await sendEmail(application.candidate.email, subject, `Update regarding your application at ${orgName}`, htmlContent);
     }
 
     await AuditLog.create({

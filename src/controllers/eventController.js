@@ -131,6 +131,11 @@ export const getEvents = async (req, res) => {
 
     if (search) query.$text = { $search: search };
     if (category && category !== "all") query.category = category;
+    
+    // 👤 Mine Filter (Recruiter/Mentor managing own events)
+    if (req.query.mine === "true" && req.user) {
+      query.createdBy = req.user._id;
+    }
 
     // 🗓️ Date-based Status Filtering
     if (status === "live" || status === "ongoing") {
@@ -181,6 +186,11 @@ export const updateEvent = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ message: "Event not found" });
+
+    // 🔒 Security: Prevent modification of past events
+    if (new Date() > new Date(event.endDate)) {
+      return res.status(400).json({ message: "Completed events cannot be modified." });
+    }
 
     const body = req.body;
     const updatable = [
@@ -258,6 +268,11 @@ export const deleteEvent = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ message: "Event not found" });
+
+    // 🔒 Security: Prevent deletion of past events
+    if (new Date() > new Date(event.endDate)) {
+      return res.status(400).json({ message: "Completed events cannot be deleted." });
+    }
 
     if (event.coverImage?.publicId) {
       try {
@@ -420,6 +435,11 @@ export const uploadSubmission = async (req, res) => {
 
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ message: "Event not found" });
+
+    // 🔒 Security: Prevent submissions for past events
+    if (new Date() > new Date(event.endDate)) {
+      return res.status(400).json({ message: "This event has ended. Submissions are no longer accepted." });
+    }
 
     const participant = event.participants.find(
       (p) => String(p.userId) === String(req.user._id)
@@ -705,6 +725,11 @@ export const updateQuiz = async (req, res) => {
 
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ message: "Event not found" });
+
+    // 🔒 Security: Prevent modification of quizzes for past events
+    if (new Date() > new Date(event.endDate)) {
+      return res.status(400).json({ message: "Completed events cannot be modified." });
+    }
 
     event.quiz = {
       questions,

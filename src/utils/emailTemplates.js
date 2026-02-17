@@ -189,3 +189,86 @@ export const candidateHiredTemplate = (candidateName, jobTitle, companyName) => 
 </body>
 </html>
 `;
+
+export const candidateShortlistedTemplate = (candidateName, jobTitle, companyName) => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Application Shortlisted</title>
+  <style>
+    body { font-family: sans-serif; background-color: #f8f9fa; padding: 20px; color: #333; }
+    .container { background: #fff; border-radius: 12px; padding: 30px; max-width: 600px; margin: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.1); border-top: 5px solid #4a3aff; }
+    h1 { color: #4a3aff; }
+    .highlight { font-weight: bold; }
+    footer { margin-top: 30px; font-size: 13px; color: #6b7280; border-top: 1px solid #eee; padding-top: 15px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📄 Application Shortlisted!</h1>
+    <p>Dear <span class="highlight">${candidateName}</span>,</p>
+    <p>We are pleased to inform you that your application for <span class="highlight">${jobTitle}</span> at <span class="highlight">${companyName}</span> has been <b>shortlisted</b>.</p>
+    <p>Our team will review your profile further and get in touch if they wish to proceed with an interview.</p>
+    <footer><p>— ${companyName} Team via OneStop Hub</p></footer>
+  </div>
+</body>
+</html>
+`;
+
+export const candidateInterviewTemplate = (candidateName, jobTitle, companyName, details) => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interview Invitation</title>
+  <style>
+    body { font-family: sans-serif; background-color: #f8f9fa; padding: 20px; color: #333; }
+    .container { background: #fff; border-radius: 12px; padding: 30px; max-width: 600px; margin: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.1); border-top: 5px solid #4a3aff; }
+    h1 { color: #4a3aff; }
+    .details { background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0; }
+    footer { margin-top: 30px; font-size: 13px; color: #6b7280; border-top: 1px solid #eee; padding-top: 15px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📅 Interview Invitation</h1>
+    <p>Dear <span class="highlight">${candidateName}</span>,</p>
+    <p>The recruitment team at <strong>${companyName}</strong> would like to invite you for an interview for the <span class="highlight">${jobTitle}</span> role.</p>
+    <div class="details">
+      <p><strong>Date:</strong> ${details?.date ? new Date(details.date).toLocaleDateString() : 'To be confirmed'}</p>
+      <p><strong>Time:</strong> ${details?.time || 'To be confirmed'}</p>
+      <p><strong>Format:</strong> ${details?.location || 'Virtual / Online'}</p>
+      ${details?.link ? `<p><strong>Meeting Link:</strong> <a href="${details.link}">${details.link}</a></p>` : ''}
+    </div>
+    <p>Please log in to your dashboard to confirm or manage this interview.</p>
+    <footer><p>— ${companyName} Recruitment Team via OneStop Hub</p></footer>
+  </div>
+</body>
+</html>
+`;
+
+export const candidateRejectedTemplate = (candidateName, jobTitle, companyName) => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Application Update</title>
+  <style>
+    body { font-family: sans-serif; background-color: #f8f9fa; padding: 20px; color: #333; }
+    .container { background: #fff; border-radius: 12px; padding: 30px; max-width: 600px; margin: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.1); border-top: 5px solid #ef4444; }
+    footer { margin-top: 30px; font-size: 13px; color: #6b7280; border-top: 1px solid #eee; padding-top: 15px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Application Update</h1>
+    <p>Dear <span class="highlight">${candidateName}</span>,</p>
+    <p>Thank you for your interest in the <span class="highlight">${jobTitle}</span> position at <span class="highlight">${companyName}</span>.</p>
+    <p>After careful consideration, we regret to inform you that we will not be moving forward with your application at this time.</p>
+    <p>We appreciate the time you invested in applying and wish you the best in your job search.</p>
+    <footer><p>— ${companyName} Team via OneStop Hub</p></footer>
+  </div>
+</body>
+</html>
+`;

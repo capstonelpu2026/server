@@ -102,7 +102,7 @@ export const applyToJob = asyncHandler(async (req, res) => {
     candidate: userId,
     resumeUrl,
     status: "applied",
-    coverLetter: "Interested in this role",
+    coverLetter: req.body.coverLetter || "I am highly interested in this position and look forward to discussing my qualifications.",
     atsScore,
     atsVerdict
   });

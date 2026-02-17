@@ -67,6 +67,7 @@ export const generateQuestions = asyncHandler(async (req, res) => {
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile", // High performance model
       temperature: 0.7,
+      max_tokens: 2048
     });
 
     const text = chatCompletion.choices[0]?.message?.content || "";
@@ -77,10 +78,21 @@ export const generateQuestions = asyncHandler(async (req, res) => {
         questions = JSON.parse(cleanText);
     } catch (e) {
         console.error("JSON Parse Error:", e);
-        // Fallback robust parsing if AI returns malformed JSON
-        questions = [
-            { type: "text", question: `Explain a complex technical challenge you solved as a ${role}.` }
-        ];
+        // Fallback robust parsing if AI returns malformed or truncated JSON
+        if (cleanText.startsWith("[") && !cleanText.endsWith("]")) {
+            try {
+                const repaired = cleanText.substring(0, cleanText.lastIndexOf("}") + 1) + "]";
+                questions = JSON.parse(repaired);
+            } catch (inner) {
+                questions = [
+                    { type: "text", question: `Explain a complex technical challenge you solved as a ${role}.` }
+                ];
+            }
+        } else {
+            questions = [
+                { type: "text", question: `Explain a complex technical challenge you solved as a ${role}.` }
+            ];
+        }
     }
     
     res.json({ questions });
@@ -147,11 +159,35 @@ export const generateQuiz = asyncHandler(async (req, res) => {
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
       temperature: 0.5,
+      max_tokens: 4096, // Ensure enough tokens for larger quiz counts
     });
 
     const text = chatCompletion.choices[0]?.message?.content || "";
     const cleanText = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    const questions = JSON.parse(cleanText);
+    
+    let questions;
+    try {
+        questions = JSON.parse(cleanText);
+    } catch (parseError) {
+        console.error("AI Quiz JSON Parse Error:", parseError.message);
+        // Attempt to fix truncated JSON if it looks like an array
+        if (cleanText.startsWith("[") && !cleanText.endsWith("]")) {
+            try {
+                // Find the last complete object in the array
+                const lastCompleteIndex = cleanText.lastIndexOf("}");
+                if (lastCompleteIndex !== -1) {
+                    const repairedText = cleanText.substring(0, lastCompleteIndex + 1) + "]";
+                    questions = JSON.parse(repairedText);
+                } else {
+                    throw new Error("Could not repair JSON");
+                }
+            } catch (repairError) {
+                throw parseError; // Re-throw original error if repair fails
+            }
+        } else {
+            throw parseError;
+        }
+    }
 
     res.json({ topic, questions });
 
@@ -164,10 +200,11 @@ export const generateQuiz = asyncHandler(async (req, res) => {
              question: `What is the primary purpose of ${topic || "this technology"}?`,
              options: ["To style web pages", "To build user interfaces", "To manage databases", "To handle HTTP requests"],
              correctAnswer: "To build user interfaces",
-             explanation: "This is a default fallback question."
+             explanation: "This is a default fallback question. The AI service encountered an issue generating your quiz."
           }
        ],
-       isFallback: true
+       isFallback: true,
+       error: error.message
     });
   }
 });
@@ -326,12 +363,28 @@ export const analyzeAudioAnswer = asyncHandler(async (req, res) => {
     const chatCompletion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.6
+      temperature: 0.6,
+      max_tokens: 2048
     });
 
     const text = chatCompletion.choices[0]?.message?.content || "";
     const cleanText = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    const analysis = JSON.parse(cleanText);
+    
+    let analysis;
+    try {
+        analysis = JSON.parse(cleanText);
+    } catch (e) {
+        // Try repair
+        if (cleanText.startsWith("{") && !cleanText.endsWith("}")) {
+            try {
+                analysis = JSON.parse(cleanText + "}");
+            } catch (inner) {
+                throw e;
+            }
+        } else {
+            throw e;
+        }
+    }
     
     // Append the transcription so UI can show what AI heard
     res.json({ ...analysis, transcription: transcript });
@@ -601,13 +654,27 @@ export const enhanceCV = asyncHandler(async (req, res) => {
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
       temperature: 0.6,
-      max_tokens: 2500
+      max_tokens: 4096
     });
 
     const text = chatCompletion.choices[0]?.message?.content || "";
     const cleanText = text.replace(/```json/g, "").replace(/```/g, "").trim();
     
-    const enhancement = JSON.parse(cleanText);
+    let enhancement;
+    try {
+        enhancement = JSON.parse(cleanText);
+    } catch (e) {
+        console.error("CV Enhancement Parse Error:", e);
+        if (cleanText.startsWith("{") && !cleanText.endsWith("}")) {
+            try {
+                enhancement = JSON.parse(cleanText + "}");
+            } catch (inner) {
+                throw e;
+            }
+        } else {
+            throw e;
+        }
+    }
     res.json(enhancement);
 
   } catch (error) {
@@ -682,11 +749,26 @@ export const generateHiringTest = async (jobTitle, jobDescription) => {
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
       temperature: 0.4,
+      max_tokens: 3000,
     });
 
     const text = completion.choices[0]?.message?.content || "";
     const cleanText = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    return JSON.parse(cleanText);
+    
+    try {
+        return JSON.parse(cleanText);
+    } catch (e) {
+        console.error("AI Hiring Test Parse Error:", e);
+        if (cleanText.startsWith("[") && !cleanText.endsWith("]")) {
+            try {
+                const repaired = cleanText.substring(0, cleanText.lastIndexOf("}") + 1) + "]";
+                return JSON.parse(repaired);
+            } catch (inner) {
+                throw e;
+            }
+        }
+        throw e;
+    }
   } catch (error) {
     console.error("AI Hiring Test Gen Error:", error);
     // Fallback simple questions
