@@ -272,3 +272,43 @@ export const candidateRejectedTemplate = (candidateName, jobTitle, companyName) 
 </body>
 </html>
 `;
+
+export const candidateOfferedTemplate = (candidateName, jobTitle, companyName, offerDetails) => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Job Offer: ${jobTitle}</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; padding: 20px; color: #333; }
+    .container { background: #fff; border-radius: 12px; padding: 30px; max-width: 600px; margin: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.1); border-top: 5px solid #fbbf24; }
+    h1 { color: #d97706; font-size: 24px; }
+    .details { background: #fffbeb; padding: 20px; border-radius: 12px; margin: 20px 0; border: 1px solid #fef3c7; }
+    .details p { margin: 8px 0; font-size: 15px; }
+    .highlight { font-weight: bold; color: #1f2937; }
+    .btn { display: inline-block; padding: 12px 24px; background-color: #d97706; color: #fff; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 15px; }
+    footer { margin-top: 30px; font-size: 13px; color: #6b7280; border-top: 1px solid #eee; padding-top: 15px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>💼 Official Job Offer</h1>
+    <p>Dear <span class="highlight">${candidateName}</span>,</p>
+    <p>We are delighted to extend an official job offer for the position of <span class="highlight">${jobTitle}</span> at <span class="highlight">${companyName}</span>!</p>
+    
+    <div class="details">
+      <p><strong>Annual Package (CTC):</strong> ${offerDetails.salary}</p>
+      <p><strong>Joining Date:</strong> ${offerDetails.joinDate ? new Date(offerDetails.joinDate).toLocaleDateString() : 'To be confirmed'}</p>
+      <p><strong>Department:</strong> ${offerDetails.department || 'TBD'}</p>
+      <p><strong>Job Mode:</strong> ${offerDetails.workMode || 'On-site'}</p>
+    </div>
+
+    <p>Please log in to the OneStop Hub dashboard to review and respond to this offer. We look forward to having you join our team!</p>
+    
+    <a href="${process.env.CLIENT_URL || '#'}/dashboard" class="btn">View & Respond to Offer</a>
+
+    <footer><p>— ${companyName} Talent Acquisition via OneStop Hub</p></footer>
+  </div>
+</body>
+</html>
+`;

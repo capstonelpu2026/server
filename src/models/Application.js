@@ -20,6 +20,10 @@ const ApplicationSchema = new mongoose.Schema({
   offerDetails: {
     salary: { type: String },
     joinDate: { type: Date },
+    department: { type: String },
+    reportingManager: { type: String },
+    workMode: { type: String, enum: ["Remote", "Hybrid", "On-site"], default: "On-site" },
+    location: { type: String },
     additionalTerms: { type: String },
     status: { type: String, enum: ["pending", "accepted", "declined"], default: "pending" }
   },

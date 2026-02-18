@@ -131,10 +131,74 @@ router.get(
     const applications = await Application.find({
       candidate: req.user._id,
     })
-      .populate("job", "title location")
+      .populate({
+        path: "job",
+        select: "title location postedBy",
+        populate: { path: "postedBy", select: "orgName" }
+      })
       .sort({ createdAt: -1 });
 
     res.json(applications);
+  })
+);
+
+/* =========================
+   OFFER RESPONSE
+========================= */
+router.patch(
+  "/applications/:id/offer-response",
+  protect,
+  asyncHandler(async (req, res) => {
+    const { response } = req.body; // accepted / declined
+    const application = await Application.findOne({
+      _id: req.params.id,
+      candidate: req.user._id
+    }).populate("job", "title");
+
+    if (!application) return res.status(404).json({ message: "Application not found" });
+    if (application.status !== "offered") return res.status(400).json({ message: "No active offer" });
+
+    application.offerDetails.status = response;
+    
+    // If accepted, also mark as hired
+    if (response === "accepted") {
+      application.status = "hired";
+    }
+
+    await application.save();
+
+    await notify({
+      userId: application.candidate,
+      title: `Offer ${response}`,
+      message: `You have ${response} the offer for ${application.job?.title}.`,
+      type: "application",
+    });
+
+    res.json({ message: `Offer ${response} successfully ✅`, application });
+  })
+);
+
+/* =========================
+   WITHDRAW APPLICATION
+========================= */
+router.patch(
+  "/applications/job/:jobId/status",
+  protect,
+  asyncHandler(async (req, res) => {
+    const { status } = req.body;
+    if (status !== "withdrawn") return res.status(400).json({ message: "Invalid status" });
+
+    const application = await Application.findOne({
+      job: req.params.jobId,
+      candidate: req.user._id
+    });
+
+    if (!application) return res.status(404).json({ message: "Application not found" });
+    
+    application.status = "withdrawn";
+    await application.save();
+
+    res.json({ message: "Application withdrawn successfully ❌" });
   })
 );
 

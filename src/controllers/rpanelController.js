@@ -12,7 +12,8 @@ import {
   candidateHiredTemplate,
   candidateShortlistedTemplate,
   candidateInterviewTemplate,
-  candidateRejectedTemplate
+  candidateRejectedTemplate,
+  candidateOfferedTemplate
 } from "../utils/emailTemplates.js";
 
 const toObjectId = (id) => new mongoose.Types.ObjectId(id);
@@ -208,7 +209,10 @@ export const listJobApplications = async (req, res) => {
         appliedAt: app.createdAt,
         atsScore: app.atsScore || 0,
         atsVerdict: app.atsVerdict || "N/A",
-        assessment: app.assessment
+        assessment: app.assessment,
+        interviewDetails: app.interviewDetails,
+        offerDetails: app.offerDetails,
+        rejectionFeedback: app.rejectionFeedback
       })),
     });
   } catch (err) {
@@ -282,6 +286,15 @@ export const updateApplicationStatus = async (req, res) => {
         interviewDetails
       );
       await sendEmail(application.candidate.email, subject, `Interview invitation for ${application.job.title}`, htmlContent);
+    } else if (status === "offered") {
+      const subject = `Job Offer: ${application.job.title} at ${orgName}`;
+      const htmlContent = candidateOfferedTemplate(
+        application.candidate.name,
+        application.job.title,
+        orgName,
+        offerDetails
+      );
+      await sendEmail(application.candidate.email, subject, `You have received a job offer from ${orgName}`, htmlContent);
     } else if (status === "rejected") {
       const subject = `Application Update: ${application.job.title}`;
       const htmlContent = candidateRejectedTemplate(
