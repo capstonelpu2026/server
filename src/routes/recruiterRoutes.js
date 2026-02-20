@@ -10,6 +10,7 @@ import { sendEmail } from "../utils/sendEmail.js";
 import { notifyUser } from "../utils/notifyUser.js";
 import axios from "axios";
 import { performAnalysis } from "../utils/atsUtils.js";
+import { resetHiringAssessment } from "../controllers/hiringAssessmentController.js";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
@@ -497,5 +498,10 @@ router.post("/applications/:id/analyze", protect, authorize(["recruiter"]), asyn
     res.status(500).json({ message: "Error analyzing resume" });
   }
 });
+
+/* =====================================================
+   🔄 Recruiter — Reset Assessment (Re-conduct)
+===================================================== */
+router.post("/applications/:applicationId/assessment/reset", protect, authorize(["recruiter"]), resetHiringAssessment);
 
 export default router;

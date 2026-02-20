@@ -248,7 +248,7 @@ export const candidateInterviewTemplate = (candidateName, jobTitle, companyName,
 </html>
 `;
 
-export const candidateRejectedTemplate = (candidateName, jobTitle, companyName) => `
+export const candidateRejectedTemplate = (candidateName, jobTitle, companyName, feedback) => `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -257,17 +257,30 @@ export const candidateRejectedTemplate = (candidateName, jobTitle, companyName) 
   <style>
     body { font-family: sans-serif; background-color: #f8f9fa; padding: 20px; color: #333; }
     .container { background: #fff; border-radius: 12px; padding: 30px; max-width: 600px; margin: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.1); border-top: 5px solid #ef4444; }
+    .feedback-box { background-color: #fff1f2; border-left: 4px solid #ef4444; padding: 20px; border-radius: 8px; margin: 25px 0; }
+    .feedback-title { color: #991b1b; font-weight: 800; text-transform: uppercase; font-size: 11px; letter-spacing: 0.1em; margin-bottom: 10px; }
+    .feedback-content { font-size: 14px; color: #4b5563; line-height: 1.6; white-space: pre-line; }
+    .highlight { font-weight: bold; }
     footer { margin-top: 30px; font-size: 13px; color: #6b7280; border-top: 1px solid #eee; padding-top: 15px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Application Update</h1>
+    <h1 style="color: #1f2937; font-size: 24px; margin-bottom: 20px;">Decision Regarding Your Application</h1>
     <p>Dear <span class="highlight">${candidateName}</span>,</p>
     <p>Thank you for your interest in the <span class="highlight">${jobTitle}</span> position at <span class="highlight">${companyName}</span>.</p>
-    <p>After careful consideration, we regret to inform you that we will not be moving forward with your application at this time.</p>
-    <p>We appreciate the time you invested in applying and wish you the best in your job search.</p>
-    <footer><p>— ${companyName} Team via OneStop Hub</p></footer>
+    <p>Our team has carefully reviewed your profile and performance throughout the recruitment process. At this time, we have decided to move forward with other candidates who more closely align with our current requirements.</p>
+    
+    ${feedback ? `
+    <div class="feedback-box">
+      <div class="feedback-title">Professional Growth Feedback</div>
+      <div class="feedback-content">${feedback}</div>
+    </div>
+    ` : ''}
+
+    <p style="margin-top: 20px;">We appreciate the time you invested in applying to <span class="highlight">${companyName}</span> and wish you the very best in your job search and professional journey.</p>
+    
+    <footer><p>— ${companyName} Talent Acquisition via OneStop Hub</p></footer>
   </div>
 </body>
 </html>

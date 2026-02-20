@@ -136,58 +136,70 @@ export const generateQuiz = asyncHandler(async (req, res) => {
   try {
     const groq = getGroqClient();
     const prompt = `
-      Generate a technical quiz for the topic: "${topic}".
-      Difficulty: ${difficulty}
-      Number of Questions: ${count}
-      
-      Format: Return ONLY a JSON array of objects.
-      Structure:
-      [
-        {
-          "question": "Question text here?",
-          "options": ["A", "B", "C", "D"],
-          "correctAnswer": "Exact text of the correct option",
-          "explanation": "Brief explanation of why it is correct"
-        }
-      ]
-      
-      Ensure questions are code-focused where applicable (e.g., "What is the output of...").
-      No markdown, just raw JSON.
+      Create a quiz on "${topic}". Difficulty: ${difficulty}. 
+      Count: EXACTLY ${count} questions.
+      Format: [ { "q": "Question?", "o": ["A", "B", "C", "D"], "a": "Correct Text", "e": "Brief explain" } ]
+      Return ONLY raw JSON array. NO markdown.
+      Requirements: 
+      1. Explanations MUST be under 15 words.
+      2. Use keys: q, o, a, e for question, options, answer, explanation.
     `;
 
     const chatCompletion = await groq.chat.completions.create({
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        { role: "system", content: "You are a quiz JSON generator. You use short keys (q, o, a, e) and output ONLY the JSON array. No markdown, no preamble." },
+        { role: "user", content: prompt }
+      ],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.5,
-      max_tokens: 4096, // Ensure enough tokens for larger quiz counts
+      temperature: 0.3,
+      max_tokens: 8192,
     });
 
     const text = chatCompletion.choices[0]?.message?.content || "";
-    const cleanText = text.replace(/```json/g, "").replace(/```/g, "").trim();
     
-    let questions;
+    // Robust extraction of JSON array
+    let cleanText = text;
+    const arrayStart = text.indexOf("[");
+    const arrayEnd = text.lastIndexOf("]");
+    
+    if (arrayStart !== -1) {
+        if (arrayEnd !== -1 && arrayEnd > arrayStart) {
+            cleanText = text.substring(arrayStart, arrayEnd + 1);
+        } else {
+            cleanText = text.substring(arrayStart).trim();
+        }
+    } else {
+        cleanText = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    }
+    
+    let rawQuestions;
     try {
-        questions = JSON.parse(cleanText);
+        rawQuestions = JSON.parse(cleanText);
     } catch (parseError) {
-        console.error("AI Quiz JSON Parse Error:", parseError.message);
-        // Attempt to fix truncated JSON if it looks like an array
         if (cleanText.startsWith("[") && !cleanText.endsWith("]")) {
             try {
-                // Find the last complete object in the array
                 const lastCompleteIndex = cleanText.lastIndexOf("}");
                 if (lastCompleteIndex !== -1) {
                     const repairedText = cleanText.substring(0, lastCompleteIndex + 1) + "]";
-                    questions = JSON.parse(repairedText);
+                    rawQuestions = JSON.parse(repairedText);
                 } else {
-                    throw new Error("Could not repair JSON");
+                    throw parseError;
                 }
             } catch (repairError) {
-                throw parseError; // Re-throw original error if repair fails
+                throw parseError;
             }
         } else {
             throw parseError;
         }
     }
+
+    // Map short keys back to long keys for the frontend
+    const questions = (Array.isArray(rawQuestions) ? rawQuestions : []).map(q => ({
+        question: q.q || q.question,
+        options: q.o || q.options || [],
+        correctAnswer: q.a || q.correctAnswer || q.answer,
+        explanation: q.e || q.explanation || "No explanation provided."
+    })).slice(0, count);
 
     res.json({ topic, questions });
 
@@ -197,10 +209,10 @@ export const generateQuiz = asyncHandler(async (req, res) => {
        topic,
        questions: [
           {
-             question: `What is the primary purpose of ${topic || "this technology"}?`,
-             options: ["To style web pages", "To build user interfaces", "To manage databases", "To handle HTTP requests"],
-             correctAnswer: "To build user interfaces",
-             explanation: "This is a default fallback question. The AI service encountered an issue generating your quiz."
+             question: `Error generating quiz for "${topic}". Would you like to try again with fewer questions?`,
+             options: ["Try again (10 Questions)", "Try again (20 Questions)", "Try Different Topic", "Report Issue"],
+             correctAnswer: "Try again (10 Questions)",
+             explanation: `The AI service encountered an issue: ${error.message}. Large question counts (like 50) are more prone to timeouts.`
           }
        ],
        isFallback: true,
@@ -416,30 +428,48 @@ export const generateJobDescription = asyncHandler(async (req, res) => {
   try {
     const groq = getGroqClient();
     const prompt = `
-      Act as an expert HR Recruiter. Write a compelling, professional Job Description for:
-      
-      Role: ${title}
-      Location: ${location}
-      Type: ${type}
-      Key Skills: ${skills.join(", ")}
-      
-      Structure:
-      1. About the Role (Exciting intro)
-      2. Key Responsibilities (Bullet points)
-      3. Requirements (Technical & Soft skills)
-      4. Why Join Us? (Benefits/Culture)
+      You are a senior HR professional. Write a polished job description for this role.
 
-      Keep it engaging and modern. Use standard markdown formatting (bullet points, bold text).
-      Length: ~300 words.
+      Role: ${title}
+      Location: ${location || "Not specified"}
+      Type: ${type || "Full-time"}
+      Key Skills: ${(skills || []).join(", ") || "General"}
+
+      FORMAT RULES (VERY IMPORTANT):
+      - Use PLAIN TEXT only. No markdown. No asterisks. No hashtags. No bold syntax.
+      - Use section headers as standalone lines ending with a colon, like:
+          About the Role:
+          Key Responsibilities:
+          Requirements:
+          Nice to Have:
+          Why Join Us:
+      - Use a dash (- ) at the start of each bullet point.
+      - Keep it professional, engaging, and modern.
+      - Length: 250-350 words.
+
+      Begin directly with "About the Role:" — no preamble.
     `;
 
     const completion = await groq.chat.completions.create({
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        { role: "system", content: "You write professional job descriptions in clean plain text. Never use markdown formatting like #, ##, **, or *. Use plain section headers followed by a colon, and dashes for bullet points." },
+        { role: "user", content: prompt }
+      ],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.7,
+      temperature: 0.6,
     });
 
-    res.json({ description: completion.choices[0]?.message?.content || "" });
+    let description = completion.choices[0]?.message?.content || "";
+    
+    // Strip any remaining markdown that the AI might have included
+    description = description
+      .replace(/^#{1,6}\s*/gm, "")       // Remove # headers
+      .replace(/\*\*(.*?)\*\*/g, "$1")    // Remove **bold** → bold
+      .replace(/\*(.*?)\*/g, "$1")        // Remove *italic* → italic
+      .replace(/^```[\s\S]*?```$/gm, "")  // Remove code blocks
+      .trim();
+
+    res.json({ description });
 
   } catch (error) {
     console.error("AI Gen Description Error:", error.message);
@@ -463,35 +493,61 @@ export const generateCoverLetter = asyncHandler(async (req, res) => {
   try {
     const groq = getGroqClient();
     const prompt = `
-      Write a professional, personalized cover letter for:
-      Candidate Name: ${userProfile.name}
-      Applying for: ${jobTitle} at ${company}
-      
-      Candidate Skills: ${userProfile.skills?.join(", ") || "General"}
-      Experience: ${userProfile.experience || "Fresher"}
-      
-      Tone: Professional, enthusiastic, and confident.
-      Structure:
-      - Salutation 
-      - Strong opening hook (why this role?)
-      - 2 paragraphs connecting skills to the role
-      - Call to action (interview request)
-      - Sign-off
-      
-      make it concise (under 250 words).
+      Write a professional cover letter in corporate business format.
+
+      Candidate Details:
+      - Name: ${userProfile.name}
+      - Skills: ${userProfile.skills?.join(", ") || "General"}
+      - Experience: ${userProfile.experience || "Fresher"}
+
+      Applying for: ${jobTitle} at ${company || "the company"}
+
+      FORMAT RULES (VERY IMPORTANT):
+      - Use PLAIN TEXT only. NO markdown, NO asterisks, NO hashtags, NO bold syntax.
+      - Structure EXACTLY like this (each section on its own line, separated by blank lines):
+
+      Dear Hiring Manager,
+
+      [Opening paragraph: Express enthusiasm for the specific role and company. 2-3 sentences.]
+
+      [Middle paragraph: Connect your key skills and experience to the role requirements. Show how you add value. 3-4 sentences.]
+
+      [Closing paragraph: Express eagerness for an interview. Thank them. 1-2 sentences.]
+
+      Best Regards,
+      ${userProfile.name}
+
+      - Keep it under 200 words total.
+      - Be specific, not generic. Reference the actual role title and company name.
+      - Tone: Confident, professional, warm — like a real executive application.
+      - Start directly with "Dear Hiring Manager," — no subject line or date.
     `;
 
     const completion = await groq.chat.completions.create({
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        { role: "system", content: "You write corporate cover letters in clean plain text. Never use markdown. Each paragraph must be separated by a blank line. Always end with a sign-off and the candidate's name on separate lines." },
+        { role: "user", content: prompt }
+      ],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.7,
+      temperature: 0.6,
     });
 
-    res.json({ coverLetter: completion.choices[0]?.message?.content || "" });
+    let coverLetter = completion.choices[0]?.message?.content || "";
+    
+    // Strip any markdown the AI might have included
+    coverLetter = coverLetter
+      .replace(/^#{1,6}\s*/gm, "")
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/\*(.*?)\*/g, "$1")
+      .replace(/^Subject:.*$/gm, "")
+      .replace(/^\[.*\]$/gm, "")
+      .trim();
+
+    res.json({ coverLetter });
 
   } catch (error) {
     console.error("AI Cover Letter Error:", error.message);
-    res.status(500).json({ coverLetter: "Dear Hiring Manager,\n\nI am writing to express my interest in this role..." });
+    res.status(500).json({ coverLetter: `Dear Hiring Manager,\n\nI am writing to express my strong interest in the ${jobTitle} position${company ? ` at ${company}` : ''}. With my background and skills, I am confident I would be a valuable addition to your team.\n\nI look forward to the opportunity to discuss how I can contribute to your organization's success.\n\nBest Regards,\n${userProfile?.name || 'Candidate'}` });
   }
 });
 
@@ -723,59 +779,145 @@ export const enhanceCV = asyncHandler(async (req, res) => {
 export const generateHiringTest = async (jobTitle, jobDescription) => {
   try {
     const groq = getGroqClient();
-    const prompt = `
-      You are a Senior Technical Interviewer. Generate a high-integrity technical assessment for the role: "${jobTitle}".
-      Job Description: "${jobDescription.substring(0, 500)}..."
 
-      Generate 10 challenging Multiple Choice Questions (MCQs) that strictly test the core skills mentioned in the job description.
-      
-      Requirements:
-      - 4 options per question.
-      - 1 correct answer.
-      - Mix of conceptual and code-output questions.
+    // Generate MCQs
+    const mcqPrompt = `
+      You are a Senior Technical Interviewer. Generate a technical assessment for: "${jobTitle}".
+      Job Context: "${(jobDescription || '').substring(0, 400)}"
+
+      Generate EXACTLY 10 MCQs testing core skills for this role.
+      - 4 options per question, 1 correct answer
+      - Mix conceptual + practical questions
+      - Difficulty: 4 Easy, 4 Medium, 2 Hard
       
       Return ONLY a JSON array:
-      [
-        {
-          "question": "text",
-          "options": ["A", "B", "C", "D"],
-          "answer": "Exact text of correct option"
-        }
-      ]
-      No preamble, no markdown.
+      [{ "question": "text", "options": ["A","B","C","D"], "answer": "correct option text" }]
+      No markdown, no preamble.
     `;
 
-    const completion = await groq.chat.completions.create({
-      messages: [{ role: "user", content: prompt }],
+    const mcqCompletion = await groq.chat.completions.create({
+      messages: [
+        { role: "system", content: "You generate quiz JSON only. No markdown, no explanations." },
+        { role: "user", content: mcqPrompt }
+      ],
       model: "llama-3.3-70b-versatile",
       temperature: 0.4,
       max_tokens: 3000,
     });
 
-    const text = completion.choices[0]?.message?.content || "";
-    const cleanText = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    let mcqText = mcqCompletion.choices[0]?.message?.content || "";
+    mcqText = mcqText.replace(/```json/g, "").replace(/```/g, "").trim();
     
+    let questions;
     try {
-        return JSON.parse(cleanText);
+      questions = JSON.parse(mcqText);
     } catch (e) {
-        console.error("AI Hiring Test Parse Error:", e);
-        if (cleanText.startsWith("[") && !cleanText.endsWith("]")) {
-            try {
-                const repaired = cleanText.substring(0, cleanText.lastIndexOf("}") + 1) + "]";
-                return JSON.parse(repaired);
-            } catch (inner) {
-                throw e;
-            }
-        }
-        throw e;
+      if (mcqText.startsWith("[") && !mcqText.endsWith("]")) {
+        try {
+          const repaired = mcqText.substring(0, mcqText.lastIndexOf("}") + 1) + "]";
+          questions = JSON.parse(repaired);
+        } catch (inner) { throw e; }
+      } else { throw e; }
     }
+
+    // Generate Coding Problems
+    const codingPrompt = `
+      You are a Senior Technical Interviewer creating coding challenges for: "${jobTitle}".
+      
+      Generate EXACTLY 2 coding problems:
+      - Problem 1: MEDIUM difficulty
+      - Problem 2: HARD difficulty
+      
+      Both problems must be directly relevant to the skills needed for this role.
+      
+      Return ONLY a JSON array:
+      [
+        {
+          "title": "Problem Title",
+          "difficulty": "Medium",
+          "description": "Clear problem statement. What the function should do. Input/output specifications.",
+          "examples": [
+            { "input": "example input", "output": "expected output", "explanation": "why this output" }
+          ],
+          "starterCode": "function solve(input) {\\n  // Write your code here\\n  \\n}",
+          "testCases": [
+            { "input": "test input 1", "expectedOutput": "expected 1" },
+            { "input": "test input 2", "expectedOutput": "expected 2" },
+            { "input": "test input 3", "expectedOutput": "expected 3" }
+          ]
+        }
+      ]
+      
+      Rules:
+      - starterCode must be valid JavaScript with a function signature
+      - testCases must have at least 3 cases per problem
+      - Problems should test real-world skills for this job role
+      - No markdown, no preamble, ONLY the JSON array
+    `;
+
+    const codingCompletion = await groq.chat.completions.create({
+      messages: [
+        { role: "system", content: "You generate coding challenge JSON only. No markdown. The starterCode must use proper \\n for newlines in JSON strings." },
+        { role: "user", content: codingPrompt }
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.5,
+      max_tokens: 3000,
+    });
+
+    let codingText = codingCompletion.choices[0]?.message?.content || "";
+    codingText = codingText.replace(/```json/g, "").replace(/```/g, "").trim();
+
+    let codingProblems;
+    try {
+      codingProblems = JSON.parse(codingText);
+    } catch (e) {
+      if (codingText.startsWith("[") && !codingText.endsWith("]")) {
+        try {
+          const repaired = codingText.substring(0, codingText.lastIndexOf("}") + 1) + "]";
+          codingProblems = JSON.parse(repaired);
+        } catch (inner) { codingProblems = []; }
+      } else { codingProblems = []; }
+    }
+
+    // Ensure we have valid arrays
+    if (!Array.isArray(codingProblems)) codingProblems = [];
+    codingProblems = codingProblems.slice(0, 2).map(p => ({
+      title: p.title || "Coding Challenge",
+      difficulty: p.difficulty || "Medium",
+      description: p.description || "Solve this problem.",
+      examples: (p.examples || []).slice(0, 2),
+      starterCode: p.starterCode || "function solve(input) {\n  // Write your code here\n  \n}",
+      language: "javascript",
+      testCases: (p.testCases || []).slice(0, 5)
+    }));
+
+    return { questions: questions.slice(0, 10), codingProblems };
+
   } catch (error) {
     console.error("AI Hiring Test Gen Error:", error);
-    // Fallback simple questions
-    return Array.from({ length: 10 }).map((_, i) => ({
-      question: `Technical Concept Question ${i+1} for ${jobTitle}`,
-      options: ["Highly Efficient", "Scalable", "Maintainable", "None of these"],
-      answer: "Scalable"
-    }));
+    // Fallback
+    return {
+      questions: Array.from({ length: 10 }).map((_, i) => ({
+        question: `Technical Concept Question ${i+1} for ${jobTitle}`,
+        options: ["Highly Efficient", "Scalable", "Maintainable", "None of these"],
+        answer: "Scalable"
+      })),
+      codingProblems: [
+        {
+          title: "Basic Function Implementation",
+          difficulty: "Medium",
+          description: `Write a function that takes an array of numbers and returns the sum of all even numbers.`,
+          examples: [{ input: "[1,2,3,4,5,6]", output: "12", explanation: "2+4+6 = 12" }],
+          starterCode: "function sumEven(arr) {\n  // Write your code here\n  \n}",
+          language: "javascript",
+          testCases: [
+            { input: "[1,2,3,4,5,6]", expectedOutput: "12" },
+            { input: "[2,4,6]", expectedOutput: "12" },
+            { input: "[1,3,5]", expectedOutput: "0" }
+          ]
+        }
+      ]
+    };
   }
 };

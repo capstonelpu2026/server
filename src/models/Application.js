@@ -8,7 +8,7 @@ const ApplicationSchema = new mongoose.Schema({
   coverLetter: { type: String },
   status: {
     type: String,
-    enum: ["applied", "shortlisted", "interviewing", "offered", "rejected", "hired"],
+    enum: ["applied", "shortlisted", "assessment", "interviewing", "offered", "rejected", "hired"],
     default: "applied",
   },
   interviewDetails: {
@@ -30,15 +30,34 @@ const ApplicationSchema = new mongoose.Schema({
   rejectionFeedback: { type: String },
   assessment: {
     status: { type: String, enum: ["none", "sent", "completed"], default: "none" },
+    duration: { type: Number, default: 3600 }, // 60 minutes in seconds (1 hour)
     questions: [{
       question: String,
       options: [String],
       answer: String,
       type: { type: String, default: "mcq" }
     }],
+    codingProblems: [{
+      title: String,
+      difficulty: { type: String, enum: ["Medium", "Hard"], default: "Medium" },
+      description: String,
+      examples: [{ input: String, output: String, explanation: String }],
+      starterCode: String,
+      language: { type: String, default: "javascript" },
+      testCases: [{ input: String, expectedOutput: String }]
+    }],
     responses: [String],
+    codingResponses: [{ code: String, language: String }],
     score: { type: Number },
-    violations: { type: Number, default: 0 }, // Track tab switching
+    mcqScore: { type: Number },
+    codingScore: { type: Number },
+    violations: { type: Number, default: 0 },
+    faceViolations: { type: Number, default: 0 },
+    cameraEnabled: { type: Boolean, default: false },
+    trustScore: { type: Number, default: 0 },
+    aiConfidence: { type: Number, default: 0 },
+    faceSnapshotCount: { type: Number, default: 0 },
+    aiEngineType: { type: String, default: "canvas" },
     completedAt: { type: Date }
   },
   atsScore: { type: Number },

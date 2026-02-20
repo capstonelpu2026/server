@@ -300,7 +300,8 @@ export const updateApplicationStatus = async (req, res) => {
       const htmlContent = candidateRejectedTemplate(
         application.candidate.name,
         application.job.title,
-        orgName
+        orgName,
+        rejectionFeedback
       );
       await sendEmail(application.candidate.email, subject, `Update regarding your application at ${orgName}`, htmlContent);
     }
