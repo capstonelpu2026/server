@@ -33,32 +33,39 @@ router.patch("/jobs/:id/approve", protect, authorize(["admin", "superadmin"]), a
     job.status = "approved";
     await job.save();
 
+    // 🧾 Safe Audit Log
     await AuditLog.create({
       action: "APPROVE_JOB",
       performedBy: req.user._id,
-      targetUser: job.postedBy._id,
-      details: `Job "${job.title}" approved by admin`,
+      targetUser: job.postedBy ? job.postedBy._id : null,
+      details: `Job "${job.title}" approved by admin ${req.user.email}${job.postedBy ? '' : ' (Owner not found)'}`,
     });
 
-    // ✉️ Notify Recruiter via Email
-    await sendEmail(
-      job.postedBy.email,
-      "Job Approved - OneStop Hub",
-      `Hello ${job.postedBy.name},\n\nYour job "${job.title}" has been approved and is now live!\n\n— OneStop Hub`
-    );
+    if (job.postedBy) {
+      // ✉️ Notify Recruiter via Email
+      try {
+        await sendEmail(
+          job.postedBy.email,
+          "Job Approved - OneStop Hub",
+          `Hello ${job.postedBy.name},\n\nYour job "${job.title}" has been approved and is now live!\n\n— OneStop Hub`
+        );
+      } catch (e) { console.error("Email notify error:", e); }
 
-    // 🔔 In-App Notification
-    await notifyUser({
-      userId: job.postedBy._id,
-      title: "Job Approved ✅",
-      message: `Your job "${job.title}" has been approved and is now visible to candidates.`,
-      type: "job",
-    });
+      // 🔔 In-App Notification
+      try {
+        await notifyUser({
+          userId: job.postedBy._id,
+          title: "Job Approved ✅",
+          message: `Your job "${job.title}" has been approved and is now visible to candidates.`,
+          type: "job",
+        });
+      } catch (e) { console.error("In-app notify error:", e); }
+    }
 
     res.json({ message: "Job approved successfully ✅" });
   } catch (err) {
     console.error("Approve job error:", err);
-    res.status(500).json({ message: "Error approving job" });
+    res.status(500).json({ message: "Error approving job", error: err.message });
   }
 });
 
@@ -73,32 +80,39 @@ router.patch("/jobs/:id/close", protect, authorize(["admin", "superadmin"]), asy
     job.status = "closed";
     await job.save();
 
+    // 🧾 Safe Audit Log
     await AuditLog.create({
       action: "CLOSE_JOB",
       performedBy: req.user._id,
-      targetUser: job.postedBy._id,
-      details: `Job "${job.title}" closed by admin`,
+      targetUser: job.postedBy ? job.postedBy._id : null,
+      details: `Job "${job.title}" closed by admin ${req.user.email}${job.postedBy ? '' : ' (Owner not found)'}`,
     });
 
-    // ✉️ Email Recruiter
-    await sendEmail(
-      job.postedBy.email,
-      "Job Closed - OneStop Hub",
-      `Hello ${job.postedBy.name},\n\nYour job "${job.title}" has been closed by admin.\nFor more info, contact support.\n\n— OneStop Hub`
-    );
+    if (job.postedBy) {
+      // ✉️ Email Recruiter
+      try {
+        await sendEmail(
+          job.postedBy.email,
+          "Job Closed - OneStop Hub",
+          `Hello ${job.postedBy.name},\n\nYour job "${job.title}" has been closed by admin.\nFor more info, contact support.\n\n— OneStop Hub`
+        );
+      } catch (e) { console.error("Email notify error:", e); }
 
-    // 🔔 In-App Notification
-    await notifyUser({
-      userId: job.postedBy._id,
-      title: "Job Closed ⚠️",
-      message: `Your job "${job.title}" has been closed by admin.`,
-      type: "job",
-    });
+      // 🔔 In-App Notification
+      try {
+        await notifyUser({
+          userId: job.postedBy._id,
+          title: "Job Closed ⚠️",
+          message: `Your job "${job.title}" has been closed by admin.`,
+          type: "job",
+        });
+      } catch (e) { console.error("In-app notify error:", e); }
+    }
 
     res.json({ message: "Job closed successfully ⚠️" });
   } catch (err) {
     console.error("Close job error:", err);
-    res.status(500).json({ message: "Error closing job" });
+    res.status(500).json({ message: "Error closing job", error: err.message });
   }
 });
 

@@ -5,9 +5,29 @@ import User from "./models/User.js";
 import Conversation from "./models/Conversation.js";
 import Message from "./models/Message.js";
 import Notification from "./models/Notification.js";
+import PeerSession from "./models/PeerSession.js";
 import { setSocketInstance } from "./utils/notifyUser.js";
 
 const activeUsers = new Map(); // userId -> socketId
+const p2pQueues = new Map(); // topic -> [userIds]
+const p2pRooms = new Map(); // socketId -> roomId
+
+const VALID_P2P_TOPICS = [
+  // Roles
+  "Software Engineering", "Frontend Development", "Backend Engineering", "Fullstack Development",
+  "Mobile Development", "Data Science", "Machine Learning Eng", "DevOps & SRE",
+  "Cybersecurity Analyst", "Cloud Architect", "Product Management", "UI/UX Design",
+  "Data Engineer", "QA Automation", "Embedded Systems",
+  
+  // Specific Technologies
+  "React & Next.js", "Angular", "Vue.js", "Node.js & Express", "Python (Django/FastAPI)",
+  "Java (Spring Boot)", "Go (Golang)", "Rust", "C++ System Design", "Kotlin / Swift",
+  "SQL & Database Design", "NoSQL (MongoDB/Redis)", "Kubernetes & Docker", "AWS/Azure/GCP",
+  
+  // Concepts
+  "System Design (High Level)", "Data Structures & Algorithms", "Low Level Design (LLD)",
+  "Behavioral / HR Round", "GraphQL / REST APIs", "Microservices Architecture"
+];
 
 export default function socketServer(httpServer) {
   const allowedOrigins = [
@@ -220,10 +240,135 @@ export default function socketServer(httpServer) {
     });
 
     // =====================================================
+    // 🤝 PEER-TO-PEER (P2P) INTERVIEW LOGIC
+    // =====================================================
+
+    socket.on("p2p:join_queue", async ({ topic }) => {
+      // 🛡️ Logic Validation: Ignore invalid or forged topics
+      if (!VALID_P2P_TOPICS.includes(topic)) {
+        console.warn(`🛑 Unauthorized P2P Topic Attempt: ${topic} by ${socket.user.name}`);
+        return;
+      }
+
+      console.log(`🤝 ${socket.user.name} joined P2P Queue for ${topic}`);
+      
+      if (!p2pQueues.has(topic)) p2pQueues.set(topic, []);
+      const queue = p2pQueues.get(topic);
+
+      // Remove if already in queue (sanity check)
+      const existingIdx = queue.findIndex(u => u.userId === userId);
+      if (existingIdx > -1) queue.splice(existingIdx, 1);
+
+      // Matchmaking
+      if (queue.length > 0) {
+        const partner = queue.shift();
+        const partnerSocket = io.sockets.sockets.get(partner.socketId);
+        
+        if (partnerSocket) {
+          const roomId = `p2p_${partner.userId}_${userId}`;
+          const sessionData = { topic, roomId, startTime: new Date() };
+
+          // Persist to Database
+          await PeerSession.create({
+            participants: [
+              { user: partner.userId, role: "interviewer" },
+              { user: userId, role: "candidate" }
+            ],
+            topic,
+            roomId,
+            status: "active"
+          });
+
+          socket.join(roomId);
+          partnerSocket.join(roomId);
+          p2pRooms.set(socket.id, roomId);
+          p2pRooms.set(partnerSocket.id, roomId);
+
+          socket.emit("p2p:matched", { 
+            peer: { name: partner.name, id: partner.userId, avatar: partner.avatar }, 
+            role: "interviewer",
+            ...sessionData
+          });
+          
+          partnerSocket.emit("p2p:matched", { 
+            peer: { name: socket.user.name, id: userId, avatar: socket.user.avatar }, 
+            role: "candidate",
+            ...sessionData
+          });
+
+          console.log(`🔥 Match Saved: ${socket.user.name} <-> ${partner.name}`);
+        }
+      } else {
+        queue.push({ userId, socketId: socket.id, name: socket.user.name, avatar: socket.user.avatar });
+      }
+    });
+
+    socket.on("p2p:leave_queue", () => {
+      console.log(`👋 ${socket.user.name} left queue`);
+      p2pQueues.forEach((queue, topic) => {
+        const idx = queue.findIndex(u => u.socketId === socket.id);
+        if (idx > -1) queue.splice(idx, 1);
+      });
+    });
+
+    socket.on("p2p:message", (msg) => {
+      const roomId = p2pRooms.get(socket.id);
+      if (roomId) socket.to(roomId).emit("p2p:message", msg);
+    });
+
+    socket.on("p2p:signal", (data) => {
+      const roomId = p2pRooms.get(socket.id);
+      if (roomId) socket.to(roomId).emit("p2p:signal", data);
+    });
+
+    socket.on("p2p:swap_roles", () => {
+      const roomId = p2pRooms.get(socket.id);
+      if (roomId) io.to(roomId).emit("p2p:roles_swapped");
+    });
+
+    socket.on("p2p:leave_room", () => {
+      const roomId = p2pRooms.get(socket.id);
+      if (roomId) {
+        socket.to(roomId).emit("p2p:peer_left");
+        socket.leave(roomId);
+        p2pRooms.delete(socket.id);
+      }
+    });
+
+    socket.on("p2p:code_update", (code) => {
+      const roomId = p2pRooms.get(socket.id);
+      if (roomId) {
+        socket.to(roomId).emit("p2p:code_update", code);
+      }
+    });
+
+    socket.on("p2p:leave_room", () => {
+      const roomId = p2pRooms.get(socket.id);
+      if (roomId) {
+        socket.to(roomId).emit("p2p:peer_left");
+        socket.leave(roomId);
+        p2pRooms.delete(socket.id);
+      }
+    });
+
+    // =====================================================
     // 🔌 DISCONNECT
     // =====================================================
 
     socket.on("disconnect", () => {
+      // Clean P2P queues
+      p2pQueues.forEach((queue, topic) => {
+        const idx = queue.findIndex(u => u.socketId === socket.id);
+        if (idx > -1) queue.splice(idx, 1);
+      });
+
+      // Notify P2P partner if in room
+      const roomId = p2pRooms.get(socket.id);
+      if (roomId) {
+        socket.to(roomId).emit("p2p:peer_left");
+        p2pRooms.delete(socket.id);
+      }
+
       activeUsers.delete(userId);
       io.emit("presence:update", { userId, online: false });
       console.log(`❌ ${socket.user.name} disconnected`);
