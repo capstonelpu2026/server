@@ -2,6 +2,7 @@ import Groq from "groq-sdk";
 import asyncHandler from "express-async-handler";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import nodeFetch from "node-fetch";
+import fs from "fs";
 
 const getGroqClient = () => {
   if (!process.env.GROQ_API_KEY) {
@@ -24,7 +25,7 @@ const getGeminiClient = () => {
  * @access Public
  */
 export const generateQuestions = asyncHandler(async (req, res) => {
-  const { role = "Software Engineer", topic, difficulty = "Medium", company = "Tech Industry", experience = "Intermediate" } = req.body;
+  const { role = "Software Engineer", topic, difficulty = "Standard", company = "Tech Industry", experience = "Intermediate", personality = "Professional" } = req.body;
 
   if (!process.env.GROQ_API_KEY) {
     console.warn("⚠️ GROQ_API_KEY missing. Using fallback interview questions.");
@@ -45,15 +46,17 @@ export const generateQuestions = asyncHandler(async (req, res) => {
     
     // Updated prompt for company-specific interview
     const prompt = `
-      Act as a Senior Technical Recruiter at ${company}. You are conducting a mock interview for a "${role}" position (Experience Level: ${experience}). 
+      Act as a Senior Technical Recruiter at ${company} with a ${personality} personality. 
+      You are conducting a mock interview for a "${role}" position (Experience Level: ${experience}). 
       
       Generate a realistic interview set of 8 questions that ${company} is likely to ask for this role.
       Topic Focus: ${topic || "General"}
       Difficulty: ${difficulty}
+      Interviewer Tone: ${personality} (Adjust the language of questions to match this tone)
       
       Structure:
-      - 3 Deep Behavioral/Technical Questions (type: "text") tailored to ${company}'s culture (e.g., Leadership Principles for Amazon, Googliness for Google).
-      - 5 Multiple Choice Questions (type: "mcq") with 4 options and the correct answer, testing technical fundamentals.
+      - 3 Deep Behavioral/Technical Questions (type: "text") tailored to ${company}'s culture and your ${personality} persona.
+      - 5 Multiple Choice Questions (type: "mcq") with 4 options and the correct answer, testing technical fundamentals at ${difficulty} level.
 
       Return ONLY a JSON array of objects. No markdown.
       Format:
@@ -227,7 +230,7 @@ export const generateQuiz = asyncHandler(async (req, res) => {
  * @access Public
  */
 export const analyzeAnswer = asyncHandler(async (req, res) => {
-  const { question, answer, company = "General Tech", role = "Developer" } = req.body;
+  const { question, answer, company = "General Tech", role = "Developer", personality = "Professional" } = req.body;
 
   if (!question || !answer) {
     res.status(400);
@@ -239,7 +242,7 @@ export const analyzeAnswer = asyncHandler(async (req, res) => {
     
     // Updated prompt for company-specific fit analysis
     const prompt = `
-      Act as a Hiring Manager at ${company}. Analyze the following candidate answer for a ${role} position.
+      Act as a Hiring Manager at ${company} with a ${personality} personality. Analyze the following candidate answer for a ${role} position.
       
       Question: "${question}"
       Candidate's Answer: "${answer}"
@@ -248,13 +251,13 @@ export const analyzeAnswer = asyncHandler(async (req, res) => {
       {
         "score": number (0-100),
         "sentiment": "Excellent" | "Good" | "Average" | "Needs Improvement",
-        "hiringDecision": "Strong Hire" | "Hire" | "Weak Hire" | "No Hire" (Based on ${company} standards),
-        "cultureFit": "High" | "Medium" | "Low" (Does this align with ${company}'s values?),
-        "feedback": "Professional feedback focusing on technical accuracy and ${company} culture fit.",
+        "hiringDecision": "Strong Hire" | "Hire" | "Weak Hire" | "No Hire",
+        "cultureFit": "High" | "Medium" | "Low",
+        "feedback": "Professional feedback focusing on technical accuracy and communication clarity. Speak in your ${personality} tone.",
         "strengths": ["list..."],
         "weaknesses": ["list..."],
-        "improvements": "Actionable tips to improve.",
-        "sampleAnswer": "An ideal answer that would impress a ${company} recruiter."
+        "improvements": "Actionable tips.",
+        "sampleAnswer": "Ideal answer."
       }
       
       Be strictly professional and objective. Return ONLY JSON.
@@ -302,10 +305,9 @@ export const analyzeAnswer = asyncHandler(async (req, res) => {
  * @route POST /api/ai/interview/analyze-audio
  * @access Public
  */
-import fs from "fs";
 
 export const analyzeAudioAnswer = asyncHandler(async (req, res) => {
-  const { question, company = "General Tech", role = "Developer" } = req.body;
+  const { question, company = "General Tech", role = "Developer", personality = "Professional" } = req.body;
   const audioFile = req.file;
 
   if (!audioFile) {
@@ -314,32 +316,44 @@ export const analyzeAudioAnswer = asyncHandler(async (req, res) => {
   }
 
   let transcript = "";
+  const tempPath = `${audioFile.path}.webm`;
+
   try {
      const groq = getGroqClient();
      
+     // Rename to include extension (Whisper often requires it)
+     fs.renameSync(audioFile.path, tempPath);
+     console.log(`[AI] Transcribing: ${tempPath} (${audioFile.size} bytes)`);
+
      // 1. Transcribe
      const translation = await groq.audio.transcriptions.create({
-       file: fs.createReadStream(audioFile.path),
+       file: fs.createReadStream(tempPath),
        model: "whisper-large-v3",
        response_format: "json",
        temperature: 0.0
      });
      
      transcript = translation.text;
+     console.log(`[AI] Transcript received: ${transcript.substring(0, 50)}...`);
      
      // Cleanup temp file
-     fs.unlinkSync(audioFile.path);
+     fs.unlinkSync(tempPath);
      
   } catch (err) {
-     console.error("Transcription Error:", err);
-     // If transcription fails, we might still want to cleanup
+     console.error("Transcription Error Full:", err);
      if (fs.existsSync(audioFile.path)) fs.unlinkSync(audioFile.path);
-     res.status(500);
-     throw new Error("Failed to transcribe audio: " + err.message);
+     if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+     
+     // Return detailed error to help debugging
+     return res.status(500).json({
+        message: "Transcription failed",
+        error: err.message,
+        details: err.response?.data || "No extra details"
+     });
   }
 
   // 2. Analyze (Re-using logic from analyzeAnswer but inline for now to avoid refactor complexity)
-  if (!transcript || transcript.trim().length < 5) {
+  if (!transcript || transcript.trim().length < 2) {
      return res.json({
         score: 0,
         sentiment: "Neutral",
@@ -351,22 +365,28 @@ export const analyzeAudioAnswer = asyncHandler(async (req, res) => {
   try {
     const groq = getGroqClient();
     const prompt = `
-      Act as a Hiring Manager at ${company}. Analyze the following candidate spoken answer for a ${role} position.
+      Act as a Hiring Manager at ${company} with a ${personality} personality. 
+      CRITICAL TASK: Evaluate if the candidate's answer is RELEVANT to the question and TECHNICALLY CORRECT.
       
       Question: "${question}"
       Candidate's Spoken Answer (Transcribed): "${transcript}"
       
+      Evaluation Criteria:
+      1. Relevance: If the answer is off-topic or fails to address the specific question, the score MUST be below 40.
+      2. Accuracy: Check for technical correctness for the "${role}" position.
+      3. Tone: Respond in your ${personality} persona.
+      
       Provide a comprehensive evaluation in valid JSON format:
       {
         "score": number (0-100),
+        "relevance": number (0-100),
         "sentiment": "Excellent" | "Good" | "Average" | "Needs Improvement",
-        "hiringDecision": "Strong Hire" | "Hire" | "Weak Hire" | "No Hire" (Based on ${company} standards),
-        "cultureFit": "High" | "Medium" | "Low",
-        "feedback": "Professional feedback focusing on technical accuracy and communication clarity.",
+        "hiringDecision": "Strong Hire" | "Hire" | "Weak Hire" | "No Hire",
+        "feedback": "Speak in your ${personality} tone. Be honest if they dodged the question.",
         "strengths": ["list..."],
         "weaknesses": ["list..."],
         "improvements": "Actionable tips.",
-        "sampleAnswer": "Ideal answer."
+        "sampleAnswer": "The ideal relevant answer."
       }
       
       Return ONLY JSON.

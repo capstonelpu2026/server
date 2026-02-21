@@ -1,4 +1,5 @@
 import express from "express";
+import multer from "multer";
 import { 
   generateQuestions, 
   analyzeAnswer, 
@@ -20,7 +21,6 @@ router.post("/interview/analyze", analyzeAnswer);
 router.post("/chat", chatWithAI);
 
 // Audio Analysis (Local Multer)
-import multer from "multer";
 const upload = multer({ dest: "uploads/" });
 router.post("/interview/analyze-audio", upload.single("audio"), analyzeAudioAnswer);
 
