@@ -316,14 +316,23 @@ export const analyzeAudioAnswer = asyncHandler(async (req, res) => {
   }
 
   let transcript = "";
-  const tempPath = `${audioFile.path}.webm`;
+  let tempPath = audioFile.path;
 
   try {
      const groq = getGroqClient();
      
-     // Rename to include extension (Whisper often requires it)
-     fs.renameSync(audioFile.path, tempPath);
-     console.log(`[AI] Transcribing: ${tempPath} (${audioFile.size} bytes)`);
+     // Ensure file has webm extension if not already present
+     if (!tempPath.endsWith('.webm') && !tempPath.endsWith('.wav') && !tempPath.endsWith('.mp3')) {
+        const newPath = `${audioFile.path}.webm`;
+        try {
+           fs.renameSync(audioFile.path, newPath);
+           tempPath = newPath;
+        } catch (e) {
+           console.warn("Could not rename file, using original path:", e.message);
+        }
+     }
+
+     console.log(`[AI] Transcribing: ${tempPath} (${audioFile.size} bytes, original type: ${audioFile.mimetype})`);
 
      // 1. Transcribe
      const translation = await groq.audio.transcriptions.create({
@@ -337,12 +346,21 @@ export const analyzeAudioAnswer = asyncHandler(async (req, res) => {
      console.log(`[AI] Transcript received: ${transcript.substring(0, 50)}...`);
      
      // Cleanup temp file
-     fs.unlinkSync(tempPath);
+     try {
+        if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+     } catch (e) {
+        console.warn("Could not delete temp file:", e.message);
+     }
      
   } catch (err) {
      console.error("Transcription Error Full:", err);
-     if (fs.existsSync(audioFile.path)) fs.unlinkSync(audioFile.path);
-     if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+     // Cleanup files
+     if (fs.existsSync(audioFile.path)) {
+        try { fs.unlinkSync(audioFile.path); } catch (e) { console.warn(e.message); }
+     }
+     if (tempPath && fs.existsSync(tempPath)) {
+        try { fs.unlinkSync(tempPath); } catch (e) { console.warn(e.message); }
+     }
      
      // Return detailed error to help debugging
      return res.status(500).json({
@@ -941,3 +959,105 @@ export const generateHiringTest = async (jobTitle, jobDescription) => {
     };
   }
 };
+
+/**
+ * @desc Validate company name and generate strategic briefing
+ * @route POST /api/ai/interview/validate-brand
+ * @access Public
+ */
+export const validateBrand = asyncHandler(async (req, res) => {
+  const { company, topic } = req.body;
+
+  if (!company && !topic) {
+    return res.status(400).json({ isValid: false, message: "Please provide a company or a specific topic focus." });
+  }
+
+  try {
+    const groq = getGroqClient();
+    
+    const prompt = `
+      You are a Business Intelligence and Technical Expert. 
+      Task: 
+      1. Verify if the company name "${company || 'N/A'}" is a real, correctly spelled corporate entity.
+      2. Verify if the topic focus "${topic || 'N/A'}" is a real, valid professional or technical subject relevant for an interview.
+      
+      Instructions:
+      - If company is provided: check its existence and spelling. Misspellings are invalid.
+      - If topic is provided: check if it's a real field of study, technology, or business domain. Gibberish or non-professional topics are invalid.
+      - If both are provided, both must be valid.
+      - If either is invalid, set "isValid" to false and explain why in "message".
+      - If valid, generate a professional Strategy Briefing based on the company (if provided) and topic.
+
+      Return ONLY a JSON object:
+      {
+        "isValid": boolean,
+        "message": "...",
+        "visualIdentity": {
+           "color": "HEX color matching the brand (e.g. #FF0000)",
+           "accent": "Tailwind 'from- via- to-' gradient classes that match brand aesthetics",
+           "glow": "rgba string for box-shadow (e.g. rgba(255,0,0,0.3))"
+        },
+        "briefing": {
+           "overview": "Company or Domain overview...",
+           "marketContext": "...",
+           "targetCustomers": "...",
+           "competitors": "...",
+           "swot": { "strengths": [], "weaknesses": [], "opportunities": [], "threats": [] },
+           "growthOpportunities": "...",
+           "risks": "...",
+           "recommendations": "..."
+        }
+      }
+    `;
+
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.3,
+      response_format: { type: "json_object" }
+    });
+
+    const result = JSON.parse(chatCompletion.choices[0]?.message?.content || "{}");
+    res.json(result);
+
+  } catch (error) {
+    console.error("Brand Validation AI Error:", error);
+    res.status(500).json({ isValid: false, message: "Verification service currently unavailable." });
+  }
+});
+
+/**
+ * @desc High-speed brand identification for real-time UI updates
+ * @route POST /api/ai/interview/identify
+ */
+export const identifyBrand = asyncHandler(async (req, res) => {
+  const { company } = req.body;
+  if (!company || company.length < 2) return res.json({ isValid: false });
+
+  try {
+    const groq = getGroqClient();
+    const prompt = `Identify the brand identity for: "${company}". 
+    Return ONLY a JSON object:
+    {
+      "isValid": boolean,
+      "brandName": "Corrected name",
+      "visualIdentity": {
+         "color": "HEX",
+         "accent": "Tailwind gradient classes",
+         "glow": "rgba string"
+      },
+      "guide": "A short (2-sentence) professional advice summary for interviewing at this company."
+    }`;
+
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.1-8b-instant", // Faster model for real-time
+      temperature: 0.2,
+      response_format: { type: "json_object" }
+    });
+
+    res.json(JSON.parse(completion.choices[0]?.message?.content || "{}"));
+  } catch (e) {
+    res.json({ isValid: false });
+  }
+});

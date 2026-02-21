@@ -9,7 +9,9 @@ import {
   checkJobEligibility,
   enhanceCV,
   generateQuiz,
-  analyzeAudioAnswer
+  analyzeAudioAnswer,
+  validateBrand,
+  identifyBrand
 } from "../controllers/aiController.js";
 
 const router = express.Router();
@@ -17,6 +19,8 @@ const router = express.Router();
 // Interview Routes
 // Interview Routes
 router.post("/interview/questions", generateQuestions);
+router.post("/interview/validate-brand", validateBrand);
+router.post("/interview/identify", identifyBrand);
 router.post("/interview/analyze", analyzeAnswer);
 router.post("/chat", chatWithAI);
 
