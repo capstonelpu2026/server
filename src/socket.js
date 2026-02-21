@@ -243,47 +243,57 @@ export default function socketServer(httpServer) {
     // 🤝 PEER-TO-PEER (P2P) INTERVIEW LOGIC
     // =====================================================
 
-    socket.on("p2p:join_queue", async ({ topic }) => {
-      // 🛡️ Logic Validation: Ignore invalid or forged topics
+    socket.on("p2p:join_queue", async ({ topic: rawTopic }) => {
+      const topic = (rawTopic || "").trim();
+      console.log(`[P2P DEBUG] ${socket.user.name} (${socket.id}) requested join for topic: "${topic}"`);
+
       if (!VALID_P2P_TOPICS.includes(topic)) {
-        console.warn(`🛑 Unauthorized P2P Topic Attempt: ${topic} by ${socket.user.name}`);
+        console.warn(`[P2P DEBUG] 🛑 Unauthorized Topic: "${topic}" by ${socket.user.name}`);
         return;
       }
 
-      console.log(`🤝 ${socket.user.name} joined P2P Queue for ${topic}`);
-      
       if (!p2pQueues.has(topic)) p2pQueues.set(topic, []);
       const queue = p2pQueues.get(topic);
 
-      // Remove if already in queue (sanity check)
-      const existingIdx = queue.findIndex(u => u.userId === userId);
-      if (existingIdx > -1) queue.splice(existingIdx, 1);
+      // Remove current socket from queue if it was there
+      const prevLen = queue.length;
+      const filteredQueue = queue.filter(u => u.socketId !== socket.id);
+      p2pQueues.set(topic, filteredQueue);
+      if (filteredQueue.length < prevLen) console.log(`[P2P DEBUG] Removed stale entry for ${socket.user.name} from "${topic}" queue`);
 
-      // Matchmaking
-      if (queue.length > 0) {
-        const partner = queue.shift();
-        const partnerSocket = io.sockets.sockets.get(partner.socketId);
+      const currentQueue = p2pQueues.get(topic);
+      console.log(`[P2P DEBUG] Current queue size for "${topic}": ${currentQueue.length}`);
+
+      // Attempt to find a partner
+      let partner = null;
+      while (currentQueue.length > 0) {
+        const candidate = currentQueue.shift();
+        const candidateSocket = io.sockets.sockets.get(candidate.socketId);
         
-        if (partnerSocket) {
-          const roomId = `p2p_${partner.userId}_${userId}`;
-          const sessionData = { topic, roomId, startTime: new Date() };
+        if (candidateSocket && candidate.socketId !== socket.id) {
+          partner = candidate;
+          console.log(`[P2P DEBUG] Found valid partner: ${partner.name} (${partner.socketId})`);
+          break;
+        } else {
+          console.log(`[P2P DEBUG] Skipping invalid candidate: ${candidate.name} (Socket exists: ${!!candidateSocket})`);
+        }
+      }
 
-          // Persist to Database
-          await PeerSession.create({
-            participants: [
-              { user: partner.userId, role: "interviewer" },
-              { user: userId, role: "candidate" }
-            ],
-            topic,
-            roomId,
-            status: "active"
-          });
+      if (partner) {
+        const partnerSocket = io.sockets.sockets.get(partner.socketId);
+        const roomId = `p2p_${partner.userId}_${userId}_${Date.now()}`;
+        const sessionData = { topic, roomId, startTime: new Date() };
 
+        console.log(`[P2P DEBUG] Initiating match: ${socket.user.name} <-> ${partner.name} in Room ${roomId}`);
+
+        try {
+          // Join room
           socket.join(roomId);
           partnerSocket.join(roomId);
           p2pRooms.set(socket.id, roomId);
           p2pRooms.set(partnerSocket.id, roomId);
 
+          // Notify both
           socket.emit("p2p:matched", { 
             peer: { name: partner.name, id: partner.userId, avatar: partner.avatar }, 
             role: "interviewer",
@@ -296,18 +306,40 @@ export default function socketServer(httpServer) {
             ...sessionData
           });
 
-          console.log(`🔥 Match Saved: ${socket.user.name} <-> ${partner.name}`);
+          // Persist session
+          await PeerSession.create({
+            participants: [
+              { user: partner.userId, role: "interviewer" },
+              { user: userId, role: "candidate" }
+            ],
+            topic,
+            roomId,
+            status: "active"
+          });
+          console.log(`[P2P DEBUG] ✅ Match Saved & Emitted Successfully`);
+        } catch (err) {
+          console.error("[P2P DEBUG] ❌ Match initialization failed:", err);
+          // Cleanup on fail
+          socket.leave(roomId);
+          partnerSocket.leave(roomId);
+          p2pRooms.delete(socket.id);
+          p2pRooms.delete(partnerSocket.id);
         }
       } else {
-        queue.push({ userId, socketId: socket.id, name: socket.user.name, avatar: socket.user.avatar });
+        const entry = { userId, socketId: socket.id, name: socket.user.name, avatar: socket.user.avatar };
+        currentQueue.push(entry);
+        console.log(`[P2P DEBUG] ⏳ Queued ${socket.user.name}. Queue size now: ${currentQueue.length}`);
       }
     });
 
     socket.on("p2p:leave_queue", () => {
-      console.log(`👋 ${socket.user.name} left queue`);
+      console.log(`[P2P DEBUG] 👋 ${socket.user.name} explicitly leaving all queues`);
       p2pQueues.forEach((queue, topic) => {
         const idx = queue.findIndex(u => u.socketId === socket.id);
-        if (idx > -1) queue.splice(idx, 1);
+        if (idx > -1) {
+          queue.splice(idx, 1);
+          console.log(`[P2P DEBUG] Removed from "${topic}" queue`);
+        }
       });
     });
 
@@ -326,25 +358,15 @@ export default function socketServer(httpServer) {
       if (roomId) io.to(roomId).emit("p2p:roles_swapped");
     });
 
-    socket.on("p2p:leave_room", () => {
-      const roomId = p2pRooms.get(socket.id);
-      if (roomId) {
-        socket.to(roomId).emit("p2p:peer_left");
-        socket.leave(roomId);
-        p2pRooms.delete(socket.id);
-      }
-    });
-
     socket.on("p2p:code_update", (code) => {
       const roomId = p2pRooms.get(socket.id);
-      if (roomId) {
-        socket.to(roomId).emit("p2p:code_update", code);
-      }
+      if (roomId) socket.to(roomId).emit("p2p:code_update", code);
     });
 
     socket.on("p2p:leave_room", () => {
       const roomId = p2pRooms.get(socket.id);
       if (roomId) {
+        console.log(`[P2P DEBUG] ${socket.user.name} left room ${roomId}`);
         socket.to(roomId).emit("p2p:peer_left");
         socket.leave(roomId);
         p2pRooms.delete(socket.id);
