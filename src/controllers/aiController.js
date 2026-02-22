@@ -25,7 +25,15 @@ const getGeminiClient = () => {
  * @access Public
  */
 export const generateQuestions = asyncHandler(async (req, res) => {
-  const { role = "Software Engineer", topic, difficulty = "Standard", company = "Tech Industry", experience = "Intermediate", personality = "Professional" } = req.body;
+  const { 
+    role = "Software Engineer", 
+    topic, 
+    difficulty = "Standard", 
+    company = "Tech Industry", 
+    experience = "Intermediate", 
+    personality = "Professional",
+    questionCount = 5
+  } = req.body;
 
   if (!process.env.GROQ_API_KEY) {
     console.warn("⚠️ GROQ_API_KEY missing. Using fallback interview questions.");
@@ -44,20 +52,26 @@ export const generateQuestions = asyncHandler(async (req, res) => {
   try {
     const groq = getGroqClient();
     
-    // Updated prompt for company-specific interview
+    // Calculate split for question types
+    const textCount = Math.max(1, Math.floor(questionCount * 0.4));
+    const mcqCount = questionCount - textCount;
+
+    // Updated prompt with dynamic question count
     const prompt = `
       Act as a Senior Technical Recruiter at ${company} with a ${personality} personality. 
       You are conducting a mock interview for a "${role}" position (Experience Level: ${experience}). 
       
-      Generate a realistic interview set of 8 questions that ${company} is likely to ask for this role.
+      Generate a realistic interview set of EXACTLY ${questionCount} questions that ${company} is likely to ask for this role.
       Topic Focus: ${topic || "General"}
       Difficulty: ${difficulty}
       Interviewer Tone: ${personality} (Adjust the language of questions to match this tone)
       
       Structure:
-      - 3 Deep Behavioral/Technical Questions (type: "text") tailored to ${company}'s culture and your ${personality} persona.
-      - 5 Multiple Choice Questions (type: "mcq") with 4 options and the correct answer, testing technical fundamentals at ${difficulty} level.
-
+      - ${textCount} Deep Behavioral/Technical Questions (type: "text") tailored to ${company}'s culture and your ${personality} persona.
+      - ${mcqCount} Multiple Choice Questions (type: "mcq") with 4 options and the correct answer, testing technical fundamentals at ${difficulty} level.
+      
+      CRITICAL: You must provide EXACTLY ${questionCount} questions in total.
+      
       Return ONLY a JSON array of objects. No markdown.
       Format:
       [

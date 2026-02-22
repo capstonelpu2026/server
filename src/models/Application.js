@@ -58,6 +58,8 @@ const ApplicationSchema = new mongoose.Schema({
     aiConfidence: { type: Number, default: 0 },
     faceSnapshotCount: { type: Number, default: 0 },
     aiEngineType: { type: String, default: "canvas" },
+    proctoringMode: { type: String, enum: ["ai", "human", "both"], default: "ai" },
+    streamId: { type: String },
     completedAt: { type: Date }
   },
   atsScore: { type: Number },

@@ -393,3 +393,75 @@ export const updateProfile = async (req, res) => {
     res.status(500).json({ message: "Failed to update profile" });
   }
 };
+
+/* ---------------------------------------------------------
+   GET /api/rpanel/applications (All for recruiter)
+--------------------------------------------------------- */
+export const listAllApplications = async (req, res) => {
+  try {
+    const recruiterId = toObjectId(req.user._id);
+
+    const jobs = await Job.find({ postedBy: recruiterId }).select("_id");
+    const jobIds = jobs.map((j) => j._id);
+
+    if (jobIds.length === 0) {
+      return res.json({ total: 0, applications: [] });
+    }
+
+    const apps = await Application.find({ job: { $in: jobIds } })
+      .populate("candidate", "name email mobile resumeUrl")
+      .populate("job", "title")
+      .sort({ createdAt: -1 });
+
+    res.json({
+      total: apps.length,
+      applications: apps.map((app) => ({
+        _id: app._id,
+        userId: app.candidate?._id,
+        name: app.candidate?.name,
+        email: app.candidate?.email,
+        mobile: app.candidate?.mobile,
+        resumeUrl: app.resumeUrl || app.candidate?.resumeUrl,
+        coverLetter: app.coverLetter,
+        status: app.status,
+        appliedAt: app.createdAt,
+        atsScore: app.atsScore || 0,
+        atsVerdict: app.atsVerdict || "N/A",
+        assessment: app.assessment,
+        interviewDetails: app.interviewDetails,
+        offerDetails: app.offerDetails,
+        rejectionFeedback: app.rejectionFeedback,
+        job: { title: app.job?.title }
+      })),
+    });
+  } catch (err) {
+    console.error("rpanel.listAllApplications error:", err);
+    res.status(500).json({ message: "Failed to load all applications" });
+  }
+};
+
+/* ---------------------------------------------------------
+   GET /api/rpanel/applications/:applicationId
+--------------------------------------------------------- */
+export const getApplication = async (req, res) => {
+  try {
+    const recruiterId = toObjectId(req.user._id);
+    const applicationId = toObjectId(req.params.applicationId);
+
+    const application = await Application.findById(applicationId)
+      .populate("candidate", "name email mobile resumeUrl skills experience")
+      .populate("job", "title postedBy")
+      .lean();
+
+    if (!application) return res.status(404).json({ message: "Application not found" });
+
+    if (String(application.job.postedBy) !== String(recruiterId)) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    res.json({ application });
+  } catch (err) {
+    console.error("rpanel.getApplication error:", err);
+    res.status(500).json({ message: "Failed to load application" });
+  }
+};

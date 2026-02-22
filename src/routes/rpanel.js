@@ -9,9 +9,11 @@ import {
   updateApplicationStatus,
   getProfile,
   updateProfile,
-  listNotifications
+  listNotifications,
+  listAllApplications,
+  getApplication
 } from "../controllers/rpanelController.js";
-import { sendHiringAssessment } from "../controllers/hiringAssessmentController.js";
+import { sendHiringAssessment, resetHiringAssessment } from "../controllers/hiringAssessmentController.js";
 
 const router = express.Router();
 
@@ -46,6 +48,25 @@ router.get(
 );
 
 /* ============================
+   All Applications
+=============================== */
+router.get(
+  "/applications",
+  protect,
+  authorize(["recruiter"]),
+  listAllApplications
+);
+
+/* ============================
+   Get Single Application
+ =============================== */
+router.get(
+  "/applications/:applicationId",
+  protect,
+  authorize(["recruiter"]),
+  getApplication
+);
+/* ============================
    Update Application Status
 =============================== */
 router.patch(
@@ -63,6 +84,16 @@ router.post(
   protect,
   authorize(["recruiter"]),
   sendHiringAssessment
+);
+
+/* ============================
+   Reset Hiring Assessment
+=============================== */
+router.post(
+  "/applications/:applicationId/assessment/reset",
+  protect,
+  authorize(["recruiter"]),
+  resetHiringAssessment
 );
 
 /* ============================

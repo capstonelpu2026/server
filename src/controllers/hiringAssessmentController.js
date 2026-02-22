@@ -10,6 +10,7 @@ import { notifyUser } from "../utils/notifyUser.js";
  */
 export const sendHiringAssessment = asyncHandler(async (req, res) => {
   const { applicationId } = req.params;
+  const { proctoringMode = "ai", duration = 3600 } = req.body;
   
   const application = await Application.findById(applicationId).populate("job");
   if (!application) return res.status(404).json({ message: "Application not found" });
@@ -19,12 +20,13 @@ export const sendHiringAssessment = asyncHandler(async (req, res) => {
 
   application.assessment = {
     status: "sent",
-    duration: 3600, // 60 minutes (1 hour)
+    duration, 
     questions,
     codingProblems: codingProblems || [],
     violations: 0,
     faceViolations: 0,
-    cameraEnabled: false
+    cameraEnabled: false,
+    proctoringMode
   };
 
   // Advance pipeline stage to 'assessment'
@@ -76,7 +78,8 @@ export const getHiringAssessment = asyncHandler(async (req, res) => {
   res.json({ 
     questions: safeQuestions, 
     codingProblems: safeCodingProblems,
-    duration: application.assessment.duration || 3600
+    duration: application.assessment.duration || 3600,
+    proctoringMode: application.assessment.proctoringMode || "ai"
   });
 });
 

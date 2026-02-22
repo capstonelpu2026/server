@@ -295,13 +295,13 @@ export default function socketServer(httpServer) {
 
           // Notify both
           socket.emit("p2p:matched", { 
-            peer: { name: partner.name, id: partner.userId, avatar: partner.avatar }, 
+            peer: { name: partner.name, id: partner.userId, avatar: partner.avatar, role: partner.role }, 
             role: "interviewer",
             ...sessionData
           });
           
           partnerSocket.emit("p2p:matched", { 
-            peer: { name: socket.user.name, id: userId, avatar: socket.user.avatar }, 
+            peer: { name: socket.user.name, id: userId, avatar: socket.user.avatar, role: socket.user.role }, 
             role: "candidate",
             ...sessionData
           });
@@ -326,7 +326,7 @@ export default function socketServer(httpServer) {
           p2pRooms.delete(partnerSocket.id);
         }
       } else {
-        const entry = { userId, socketId: socket.id, name: socket.user.name, avatar: socket.user.avatar };
+        const entry = { userId, socketId: socket.id, name: socket.user.name, avatar: socket.user.avatar, role: socket.user.role };
         currentQueue.push(entry);
         console.log(`[P2P DEBUG] ⏳ Queued ${socket.user.name}. Queue size now: ${currentQueue.length}`);
       }
@@ -374,8 +374,49 @@ export default function socketServer(httpServer) {
     });
 
     // =====================================================
-    // 🔌 DISCONNECT
+    // 👁️ LIVE PROCTORING LOGIC
     // =====================================================
+    
+    socket.on("proctor:join", ({ applicationId, role }) => {
+      const roomId = `proctor_${applicationId}`;
+      socket.join(roomId);
+      console.log(`👁️ [PROCTOR] ${socket.user.name} joined as ${role} for room: ${roomId}`);
+      
+      if (role === 'candidate') {
+        socket.to(roomId).emit("proctor:candidate_online");
+      } else {
+        socket.to(roomId).emit("proctor:recruiter_online");
+      }
+    });
+
+    socket.on("proctor:signal", ({ applicationId, signal }) => {
+      const roomId = `proctor_${applicationId}`;
+      socket.to(roomId).emit("proctor:signal", { signal, from: socket.id });
+    });
+
+    socket.on("proctor:alert", ({ applicationId, type, details }) => {
+      const roomId = `proctor_${applicationId}`;
+      socket.to(roomId).emit("proctor:alert", { type, details, timestamp: new Date() });
+    });
+
+    socket.on("proctor:warning", ({ applicationId, message }) => {
+      const roomId = `proctor_${applicationId}`;
+      socket.to(roomId).emit("proctor:warning", { message });
+    });
+
+    socket.on("proctor:seal", ({ applicationId }) => {
+      const roomId = `proctor_${applicationId}`;
+      socket.to(roomId).emit("proctor:seal");
+    });
+
+    socket.on("proctor:leave", ({ applicationId }) => {
+      const roomId = `proctor_${applicationId}`;
+      socket.leave(roomId);
+    });
+
+    // =====================================================
+    // 🔌 DISCONNECT
+    // =====================================
 
     socket.on("disconnect", () => {
       // Clean P2P queues
