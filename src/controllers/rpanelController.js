@@ -142,6 +142,107 @@ export const getOverview = async (req, res) => {
   }
 };
 
+
+/* ---------------------------------------------------------
+   PATCH /api/rpanel/jobs/:id
+--------------------------------------------------------- */
+export const updateJob = async (req, res) => {
+  try {
+    const recruiterId = toObjectId(req.user._id);
+    const jobId = toObjectId(req.params.id);
+
+    const job = await Job.findOne({ _id: jobId, postedBy: recruiterId });
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    const allowedFields = ["title", "description", "skills", "location", "salary", "type", "status"];
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) job[field] = req.body[field];
+    });
+
+    await job.save();
+
+    await AuditLog.create({
+      action: "UPDATE_JOB",
+      performedBy: recruiterId,
+      targetUser: recruiterId,
+      details: `Recruiter updated job "${job.title}"`,
+    });
+
+    res.json({ message: "Job updated successfully", job });
+  } catch (err) {
+    console.error("rpanel.updateJob error:", err);
+    res.status(500).json({ message: "Failed to update job" });
+  }
+};
+
+/* ---------------------------------------------------------
+   DELETE /api/rpanel/jobs/:id
+--------------------------------------------------------- */
+export const deleteJob = async (req, res) => {
+  try {
+    const recruiterId = toObjectId(req.user._id);
+    const jobId = toObjectId(req.params.id);
+
+    const job = await Job.findOne({ _id: jobId, postedBy: recruiterId });
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    await job.deleteOne();
+
+    await AuditLog.create({
+      action: "DELETE_JOB",
+      performedBy: recruiterId,
+      targetUser: recruiterId,
+      details: `Recruiter deleted job "${job.title}"`,
+    });
+
+    res.json({ message: "Job deleted successfully" });
+  } catch (err) {
+    console.error("rpanel.deleteJob error:", err);
+    res.status(500).json({ message: "Failed to delete job" });
+  }
+};
+
+/* ---------------------------------------------------------
+   POST /api/rpanel/jobs
+--------------------------------------------------------- */
+export const createJob = async (req, res) => {
+  try {
+    const recruiterId = toObjectId(req.user._id);
+    const { title, description, skills = [], location, salary, type } = req.body;
+
+    if (!title || !description) {
+      return res.status(400).json({ message: "Title and Description are required" });
+    }
+
+    const job = await Job.create({
+      title,
+      description,
+      skills,
+      location,
+      salary,
+      type,
+      postedBy: recruiterId,
+      status: "active", // Defaulting to active for now if needed, or pending
+    });
+
+    await AuditLog.create({
+      action: "CREATE_JOB",
+      performedBy: recruiterId,
+      targetUser: recruiterId,
+      details: `Recruiter created job "${title}"`,
+    });
+
+    res.status(201).json({
+      message: "Job created successfully! 🚀",
+      job,
+    });
+  } catch (err) {
+    console.error("rpanel.createJob error:", err);
+    res.status(500).json({ message: "Failed to create job" });
+  }
+};
+
+
 /* ---------------------------------------------------------
    GET /api/rpanel/jobs
 --------------------------------------------------------- */
@@ -199,11 +300,17 @@ export const listJobApplications = async (req, res) => {
       total: apps.length,
       applications: apps.map((app) => ({
         _id: app._id,
-        userId: app.candidate?._id,
-        name: app.candidate?.name,
-        email: app.candidate?.email,
-        mobile: app.candidate?.mobile,
-        resumeUrl: app.resumeUrl || app.candidate?.resumeUrl,
+        candidate: {
+          _id: app.candidate?._id,
+          name: app.candidate?.name,
+          email: app.candidate?.email,
+          mobile: app.candidate?.mobile,
+          resumeUrl: app.resumeUrl || app.candidate?.resumeUrl,
+        },
+        job: {
+          _id: jobId,
+          title: job.title
+        },
         coverLetter: app.coverLetter,
         status: app.status,
         appliedAt: app.createdAt,
@@ -417,11 +524,17 @@ export const listAllApplications = async (req, res) => {
       total: apps.length,
       applications: apps.map((app) => ({
         _id: app._id,
-        userId: app.candidate?._id,
-        name: app.candidate?.name,
-        email: app.candidate?.email,
-        mobile: app.candidate?.mobile,
-        resumeUrl: app.resumeUrl || app.candidate?.resumeUrl,
+        candidate: {
+          _id: app.candidate?._id,
+          name: app.candidate?.name,
+          email: app.candidate?.email,
+          mobile: app.candidate?.mobile,
+          resumeUrl: app.resumeUrl || app.candidate?.resumeUrl,
+        },
+        job: {
+          _id: app.job?._id,
+          title: app.job?.title
+        },
         coverLetter: app.coverLetter,
         status: app.status,
         appliedAt: app.createdAt,
@@ -430,8 +543,7 @@ export const listAllApplications = async (req, res) => {
         assessment: app.assessment,
         interviewDetails: app.interviewDetails,
         offerDetails: app.offerDetails,
-        rejectionFeedback: app.rejectionFeedback,
-        job: { title: app.job?.title }
+        rejectionFeedback: app.rejectionFeedback
       })),
     });
   } catch (err) {

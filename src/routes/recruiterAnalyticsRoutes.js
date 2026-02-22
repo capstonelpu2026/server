@@ -74,13 +74,24 @@ router.get("/", protect, authorize(["recruiter"]), async (req, res) => {
       },
     ]);
 
+    const totalApplications = counts.pending + counts.shortlisted + counts.rejected + counts.hired;
+
     res.json({
-      ...counts,
+      totalJobs: jobs.length,
+      totalApplications,
+      hiredCount: counts.hired,
+      counts: {
+        applied: counts.pending,
+        shortlisted: counts.shortlisted,
+        rejected: counts.rejected,
+        hired: counts.hired
+      },
       conversionRate,
       trends,
       topJobs,
     });
   } catch (err) {
+    console.error("Analytics Error:", err);
     res.status(500).json({ message: "Server error loading analytics" });
   }
 });

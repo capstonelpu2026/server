@@ -316,6 +316,13 @@ export const candidateOfferedTemplate = (candidateName, jobTitle, companyName, o
       <p><strong>Job Mode:</strong> ${offerDetails.workMode || 'On-site'}</p>
     </div>
 
+    ${offerDetails.additionalTerms ? `
+    <div style="background: #f8fafc; border-left: 4px solid #334155; padding: 15px; border-radius: 8px; margin: 20px 0;">
+      <p style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.05em;">Contractual & Professional Clauses</p>
+      <div style="font-size: 13px; color: #334155; line-height: 1.6; white-space: pre-line;">${offerDetails.additionalTerms}</div>
+    </div>
+    ` : ''}
+
     <p>Please log in to the OneStop Hub dashboard to review and respond to this offer. We look forward to having you join our team!</p>
     
     <a href="${process.env.CLIENT_URL || '#'}/dashboard" class="btn">View & Respond to Offer</a>

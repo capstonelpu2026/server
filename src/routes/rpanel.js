@@ -11,7 +11,10 @@ import {
   updateProfile,
   listNotifications,
   listAllApplications,
-  getApplication
+  getApplication,
+  createJob,
+  updateJob,
+  deleteJob
 } from "../controllers/rpanelController.js";
 import { sendHiringAssessment, resetHiringAssessment } from "../controllers/hiringAssessmentController.js";
 
@@ -35,6 +38,30 @@ router.get(
   protect,
   authorize(["recruiter"]),
   listJobs
+);
+
+/* ============================
+   Create Job
+=============================== */
+router.post(
+  "/jobs",
+  protect,
+  authorize(["recruiter"]),
+  createJob
+);
+
+router.patch(
+  "/jobs/:id",
+  protect,
+  authorize(["recruiter"]),
+  updateJob
+);
+
+router.delete(
+  "/jobs/:id",
+  protect,
+  authorize(["recruiter"]),
+  deleteJob
 );
 
 /* ============================

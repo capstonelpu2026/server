@@ -11,6 +11,9 @@ import { setSocketInstance } from "./utils/notifyUser.js";
 const activeUsers = new Map(); // userId -> socketId
 const p2pQueues = new Map(); // topic -> [userIds]
 const p2pRooms = new Map(); // socketId -> roomId
+const proctorRooms = new Map(); // socketId -> applicationId
+const p2pActiveRooms = new Map(); // roomId -> { participants: [userIds], topic, startTime }
+const disconnectTimeouts = new Map(); // userId -> timeoutId
 
 const VALID_P2P_TOPICS = [
   // Roles
@@ -245,6 +248,15 @@ export default function socketServer(httpServer) {
 
     socket.on("p2p:join_queue", async ({ topic: rawTopic }) => {
       const topic = (rawTopic || "").trim();
+      
+      // 🚀 NEW: Check if this user was already in an active room (handle accidental refresh)
+      for (const [rid, roomData] of p2pActiveRooms.entries()) {
+        if (roomData.participants.includes(userId)) {
+          console.log(`[P2P] Found active session for ${socket.user.name} in ${rid}. Suggesting rejoin instead.`);
+          // We don't auto-rejoin here, but we can prevent them from queueing if they should be in a room
+        }
+      }
+
       console.log(`[P2P DEBUG] ${socket.user.name} (${socket.id}) requested join for topic: "${topic}"`);
 
       if (!VALID_P2P_TOPICS.includes(topic)) {
@@ -293,6 +305,14 @@ export default function socketServer(httpServer) {
           p2pRooms.set(socket.id, roomId);
           p2pRooms.set(partnerSocket.id, roomId);
 
+          // 🚀 Track active room
+          p2pActiveRooms.set(roomId, {
+            participants: [partner.userId, userId],
+            topic,
+            startTime: sessionData.startTime,
+            roles: { [partner.userId]: "interviewer", [userId]: "candidate" }
+          });
+
           // Notify both
           socket.emit("p2p:matched", { 
             peer: { name: partner.name, id: partner.userId, avatar: partner.avatar, role: partner.role }, 
@@ -324,6 +344,7 @@ export default function socketServer(httpServer) {
           partnerSocket.leave(roomId);
           p2pRooms.delete(socket.id);
           p2pRooms.delete(partnerSocket.id);
+          p2pActiveRooms.delete(roomId);
         }
       } else {
         const entry = { userId, socketId: socket.id, name: socket.user.name, avatar: socket.user.avatar, role: socket.user.role };
@@ -332,6 +353,46 @@ export default function socketServer(httpServer) {
       }
     });
 
+    // 🚀 NEW: Rejoin Room Event
+    socket.on("p2p:rejoin", async ({ roomId }) => {
+      const roomData = p2pActiveRooms.get(roomId);
+      if (!roomData || !roomData.participants.includes(userId)) {
+        console.log(`[P2P] Denied rejoin request from ${socket.user.name} for room ${roomId}`);
+        return socket.emit("p2p:rejoin_failed", { message: "Session no longer active or unauthorized" });
+      }
+
+      console.log(`[P2P] User ${socket.user.name} rejoining room ${roomId}`);
+      
+      // Clear any pending disconnect timeout
+      if (disconnectTimeouts.has(userId)) {
+        clearTimeout(disconnectTimeouts.get(userId));
+        disconnectTimeouts.delete(userId);
+      }
+
+      socket.join(roomId);
+      p2pRooms.set(socket.id, roomId);
+
+      // Find the peer's info from current active users
+      const peerId = roomData.participants.find(id => id !== userId);
+      const peer = await User.findById(peerId).select("name avatar role");
+      
+      socket.emit("p2p:matched", {
+        peer: { name: peer.name, id: peerId, avatar: peer.avatar, role: peer.role },
+        role: roomData.roles[userId],
+        topic: roomData.topic,
+        roomId,
+        startTime: roomData.startTime,
+        isRejoin: true
+      });
+
+      // Notify the peer
+      socket.to(roomId).emit("p2p:message", { 
+        senderId: "system", 
+        text: `🚀 ${socket.user.name} re-connected to the workspace.`, 
+        isSystem: true 
+      });
+      socket.to(roomId).emit("p2p:peer_reconnected");
+    });
     socket.on("p2p:leave_queue", () => {
       console.log(`[P2P DEBUG] 👋 ${socket.user.name} explicitly leaving all queues`);
       p2pQueues.forEach((queue, topic) => {
@@ -363,13 +424,17 @@ export default function socketServer(httpServer) {
       if (roomId) socket.to(roomId).emit("p2p:code_update", code);
     });
 
-    socket.on("p2p:leave_room", () => {
+    socket.on("p2p:leave_room", async () => {
       const roomId = p2pRooms.get(socket.id);
       if (roomId) {
         console.log(`[P2P DEBUG] ${socket.user.name} left room ${roomId}`);
         socket.to(roomId).emit("p2p:peer_left");
         socket.leave(roomId);
         p2pRooms.delete(socket.id);
+        p2pActiveRooms.delete(roomId); // Clean up the active room tracking
+        
+        // Update persistent session
+        await PeerSession.findOneAndUpdate({ roomId }, { status: "completed", endTime: new Date() });
       }
     });
 
@@ -380,6 +445,7 @@ export default function socketServer(httpServer) {
     socket.on("proctor:join", ({ applicationId, role }) => {
       const roomId = `proctor_${applicationId}`;
       socket.join(roomId);
+      proctorRooms.set(socket.id, applicationId); // 🚀 Track proctoring room
       console.log(`👁️ [PROCTOR] ${socket.user.name} joined as ${role} for room: ${roomId}`);
       
       if (role === 'candidate') {
@@ -412,6 +478,7 @@ export default function socketServer(httpServer) {
     socket.on("proctor:leave", ({ applicationId }) => {
       const roomId = `proctor_${applicationId}`;
       socket.leave(roomId);
+      proctorRooms.delete(socket.id);
     });
 
     // =====================================================
@@ -425,11 +492,34 @@ export default function socketServer(httpServer) {
         if (idx > -1) queue.splice(idx, 1);
       });
 
-      // Notify P2P partner if in room
+      // Notify P2P partner if in room (with Grace Period)
       const roomId = p2pRooms.get(socket.id);
       if (roomId) {
-        socket.to(roomId).emit("p2p:peer_left");
         p2pRooms.delete(socket.id);
+
+        // Wait 10 seconds before telling the peer they left
+        // This allows for page refreshes
+        const timeoutId = setTimeout(() => {
+          socket.to(roomId).emit("p2p:peer_left");
+          p2pActiveRooms.delete(roomId);
+          console.log(`[P2P] User ${socket.user.name} timed out of room ${roomId}`);
+        }, 10000); 
+
+        disconnectTimeouts.set(userId, timeoutId);
+        socket.to(roomId).emit("p2p:peer_disconnected", { userId });
+      }
+
+      // 👁️ Notify Proctoring Room (Grace Period)
+      const appId = proctorRooms.get(socket.id);
+      if (appId) {
+        const roomId = `proctor_${appId}`;
+        const timeoutId = setTimeout(() => {
+          socket.to(roomId).emit("proctor:candidate_offline");
+          console.log(`👁️ [PROCTOR] Candidate ${socket.user.name} timed out of assessment.`);
+        }, 12000); // 12 second grace for assessments
+        
+        disconnectTimeouts.set(userId, timeoutId);
+        proctorRooms.delete(socket.id);
       }
 
       activeUsers.delete(userId);
