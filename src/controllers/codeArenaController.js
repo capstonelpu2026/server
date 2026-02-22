@@ -110,23 +110,57 @@ export const generateProblems = asyncHandler(async (req, res) => {
     res.json({ problems });
 
   } catch (error) {
-    console.error("Code Arena Generation Error:", error.message);
-    // Hard fallback so the UI never crashes
-    res.json({ 
-        problems: [
-            {
-                title: `${language} Logic Validator`,
-                difficulty: difficulty,
-                description: `Write a function to validate if a given array contains any duplicate elements.\n\nExample 1:\nInput: nums = [1,2,3,1]\nOutput: true\n\nExample 2:\nInput: nums = [1,2,3,4]\nOutput: false`,
-                constraints: ["1 <= nums.length <= 10^5", "-10^9 <= nums[i] <= 10^9"],
-                starterCode: language.toLowerCase() === 'python' ? `def containsDuplicate(nums):\n    # Write your logic here\n    pass` : `function containsDuplicate(nums) {\n    // Write your logic here\n}`,
-                testCases: [
-                    { input: "[1,2,3,1]", output: "true" },
-                    { input: "[1,2,3,4]", output: "false" }
-                ]
-            }
-        ] 
-    });
+    const getStarterCode = (lang, funcName) => {
+        const l = lang.toLowerCase();
+        if (l === 'python') return `def ${funcName}(nums):\n    # Write your logic here\n    pass`;
+        if (l === 'cpp') return `int ${funcName}(vector<int>& nums) {\n    // Write your logic here\n    return 0;\n}`;
+        if (l === 'java') return `public int ${funcName}(int[] nums) {\n    // Write your logic here\n    return 0;\n}`;
+        return `function ${funcName}(nums) {\n    // Write your logic here\n}`;
+    };
+
+    const getStringStarter = (lang, funcName) => {
+        const l = lang.toLowerCase();
+        if (l === 'python') return `def ${funcName}(s):\n    # Write your logic here\n    pass`;
+        if (l === 'cpp') return `string ${funcName}(string s) {\n    // Write your logic here\n    return s;\n}`;
+        if (l === 'java') return `public String ${funcName}(String s) {\n    // Write your logic here\n    return s;\n}`;
+        return `function ${funcName}(s) {\n    // Write your logic here\n}`;
+    };
+
+    // Hard fallback pool so the UI never crashes and respects the quest count
+    const fallbackPool = [
+        {
+            title: `${language} Array Master`,
+            difficulty: "Easy",
+            description: `Write a function to find the maximum element in a given array.\n\nExample:\nInput: nums = [1,5,3,9,2]\nOutput: 9`,
+            constraints: ["1 <= nums.length <= 10^5"],
+            starterCode: getStarterCode(language, "findMax"),
+            testCases: [{ input: "[1,5,3,9,2]", output: "9" }, { input: "[10, 20, 5]", output: "20" }]
+        },
+        {
+            title: `${language} Logic Validator`,
+            difficulty: "Easy",
+            description: `Write a function to validate if a given array contains any duplicate elements.\n\nExample:\nInput: nums = [1,2,3,1]\nOutput: true`,
+            constraints: ["1 <= nums.length <= 10^5", "-10^9 <= nums[i] <= 10^9"],
+            starterCode: getStarterCode(language, "containsDuplicate"),
+            testCases: [{ input: "[1,2,3,1]", output: "true" }, { input: "[1,2,3,4]", output: "false" }]
+        },
+        {
+            title: `${language} String Reverser`,
+            difficulty: "Easy",
+            description: `Write a function to reverse a given string.\n\nExample:\nInput: s = "hello"\nOutput: "olleh"`,
+            constraints: ["1 <= s.length <= 10^5"],
+            starterCode: getStringStarter(language, "reverseString"),
+            testCases: [{ input: '"hello"', output: '"olleh"' }, { input: '"world"', output: '"dlrow"' }]
+        }
+    ];
+
+    const countInt = parseInt(count) || 1;
+    let selectedProblems = [];
+    for(let i=0; i < countInt; i++) {
+        selectedProblems.push(fallbackPool[i % fallbackPool.length]);
+    }
+
+    res.json({ problems: selectedProblems });
   }
 });
 
@@ -141,31 +175,32 @@ export const evaluateSolution = asyncHandler(async (req, res) => {
   try {
     const groq = getGroqClient();
     const prompt = `
-      Act as a Lead Technical Interviewer. Evaluate the following coding solution.
+      Act as a Lead Technical Interviewer and Code Quality Auditor.
       
       Problem Title: ${problem.title}
       Problem Description: ${problem.description}
-      Language: ${language}
-      Candidate Code:
+      Expected Language: ${language}
+      
+      Candidate Code Submitted:
       \`\`\`${language}
       ${code}
       \`\`\`
       
-      Hidden Test Cases: ${JSON.stringify(problem.testCases)}
+      Strict Test Cases to Validate: ${JSON.stringify(problem.testCases)}
       
-      Analyze:
-      1. Correctness: Does it solve the problem and pass the hidden test cases?
-      2. Complexity: What is the Time and Space complexity?
-      3. Quality: Is the code clean, readable, and efficient?
+      Evaluation Guidelines:
+      1. CRITICAL: If the code is written in a language OTHER than ${language}, mark all test cases as "failed" with actual output set to "Error: Language Mismatch".
+      2. CRITICAL: If the code has a syntax error that would prevent execution, mark as "failed" with actual output set to the specific compiler/runtime error.
+      3. LOGIC: Compare the candidate's logic against the test cases. Be extremely precise with output comparison.
       
-      Return ONLY a JSON object:
+      Return ONLY a clean JSON object with this structure:
       {
         "status": "Accepted" | "Rejected" | "Partial",
         "score": number (0-100),
-        "complexity": { "time": "...", "space": "..." },
-        "feedback": "...",
-        "bugs": ["..."],
-        "efficiencyTips": ["..."],
+        "complexity": { "time": "O(...)", "space": "O(...)" },
+        "feedback": "A concise professional summary of the submission.",
+        "bugs": ["List any logical flaws or edge cases they missed"],
+        "efficiencyTips": ["How to optimize the Big O complexity or code readability"],
         "testCaseResults": [
             { "input": "...", "expected": "...", "actual": "...", "passed": boolean }
         ]

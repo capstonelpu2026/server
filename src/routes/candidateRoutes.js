@@ -30,9 +30,7 @@ router.get(
   "/profile",
   protect,
   asyncHandler(async (req, res) => {
-    if (req.user.role !== "candidate")
-      return res.status(403).json({ message: "Candidates only" });
-
+    // Every authenticated user can have a professional profile view
     const user = await User.findById(req.user._id)
       .select("-password")
       .populate("savedJobs", "title location status")
@@ -85,9 +83,6 @@ router.post(
   protect,
   upload.single("file"),
   asyncHandler(async (req, res) => {
-    if (req.user.role !== "candidate")
-      return res.status(403).json({ message: "Candidates only" });
-
     if (!req.file?.path)
       return res.status(400).json({ message: "Resume file required" });
 
@@ -125,9 +120,6 @@ router.get(
   "/applications",
   protect,
   asyncHandler(async (req, res) => {
-    if (req.user.role !== "candidate")
-      return res.status(403).json({ message: "Candidates only" });
-
     const applications = await Application.find({
       candidate: req.user._id,
     })
