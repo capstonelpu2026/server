@@ -13,6 +13,12 @@ import {
   validateBrand,
   identifyBrand
 } from "../controllers/aiController.js";
+import { 
+  generateProblems, 
+  evaluateSolution,
+  completeQuest 
+} from "../controllers/codeArenaController.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -35,5 +41,10 @@ router.post("/job-eligibility", checkJobEligibility);
 /* Aadhaar analysis route removed */
 router.post("/enhance-cv", enhanceCV);
 router.post("/quiz/generate", generateQuiz);
+
+// 🚀 OneStop Code Arena
+router.post("/code-arena/generate", generateProblems);
+router.post("/code-arena/evaluate", evaluateSolution);
+router.post("/code-arena/save", protect, completeQuest);
 
 export default router;

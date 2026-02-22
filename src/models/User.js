@@ -55,7 +55,12 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+    /* 🎮 Platform Gamification */
     points: { type: Number, default: 0 },
+    arenaStats: {
+        totalXP: { type: Number, default: 0 },
+        solvedChallenges: { type: Number, default: 0 }
+    },
     allowedRoles: {
       type: [String],
       default: [],
