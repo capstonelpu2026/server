@@ -17,6 +17,7 @@ import {
   updateQuiz,
   getQuiz,
   submitQuiz,
+  emailCertificate,
 } from "../controllers/eventController.js";
 
 import { protect } from "../middleware/auth.js";
@@ -253,6 +254,21 @@ router.post(
   "/:id/quiz/submit",
   protect,
   submitQuiz
+);
+
+/* =====================================================
+   🎓 CERTIFICATE ROUTES
+===================================================== */
+
+/**
+ * @route   POST /api/events/:id/certificate/email
+ * @desc    Email certificate to the registered participant
+ * @access  Registered users
+ */
+router.post(
+  "/:id/certificate/email",
+  protect,
+  emailCertificate
 );
 
 export default router;

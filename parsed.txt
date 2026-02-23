@@ -1,0 +1,809 @@
+
+
+                                                    Annexure3b- Complete filing  
+ 
+         INVENTION DISCLOSURE FORM 
+ 
+1.  TITLE:  AI-Powered Handwriting-to-Speech Glove for the Visually Impaired 
+2. INTERNAL INVENTOR(S)/ STUDENT(S):  
+A.  Full name 
+                                     A Chaithanya Kumar
+ 
+Mobile Number                                        8639949893 
+Email (personal)                          Chaithanya9727@gmail.com 
+UID/Registration number                                        12205789 
+Address of Internal Inventors              Lovely Professional University, Punjab, India 
+Signature (Mandatory) 
+                           
+ 
+B.  Full name 
+                                      M Vamsi Krishna
+ 
+Mobile Number                                     6281124932 
+Email (personal)                           Mvamsi6281@gmail.com 
+UID/Registration number 
+                                          12210253 
+Address of Internal Inventors            Lovely Professional University, Punjab, India 
+Signature (Mandatory) 
+                          
+
+ 
+C.     Full name 
+                                            
+Mokshajna Undavalli
+ 
+Mobile Number                                     7569118215 
+Email (personal)                          Mokshjna123@gmail.com 
+UID/Registration number                                      12212837 
+Address of Internal Inventors Lovely Professional University, Punjab-144411, India 
+Signature (Mandatory) 
+                         
+ 
+D.    Full name                                   Bisma Mashooq
+ 
+Mobile Number                                           N/A 
+Email (personal)                                           N/A 
+UID/Registration number                                    30570 
+Address of Internal Inventors Lovely Professional University, Punjab-144411, India 
+Signature (Mandatory) 
+                                     
+ 
+EXTERNAL INVENTOR(S): (INVENTORS NOT WORKING IN LPU) 
+A.     Full name                                            N/A 
+
+Mobile Number N/A 
+         Email N/A 
+Address of External 
+Affiliations  
+N/A 
+Signature (Mandatory) N/A 
+ 
+3. DESCRIPTION OF THE INVENTION: 
+This rendering of reality makes the Handwriting-to-Speech Glove the simplest product for giving 
+independent   communication   to   blind   persons   by   converting   moving   Handwriting   into 
+corresponding  speech.  It  gives  a  user  a  less  intrusive  yet  functional  means  of  communicating 
+without  the  assistance  of  any  person  with  sight,  or  without  any  equipment,  by  using  gesture 
+recognition technologies, AI-based handwriting recognition, and text-to-speech synthesis.  
+The  glove  primarily  employs  motion  sensors  such  as  gyroscopes  and  accelerometers  to  capture 
+hand movements. With pressure sensors, these measure the pressure, speed, and direction of the 
+user's  hands  and  fingers  during  movement.  The  information  then  gets  processed  by  the 
+microcontroller and sent out to the AI system that creates the words being input.  
+The function of TTS is that it produces the speech close to human speech from the generated text. 
+The  speech  output  is  therefore  only  for  the  user  to  maintain  complete  confidentiality  of  the 
+conversation. This is the form of feedback that in-charges spontaneous conversations at different 
+settings since the users can always hear it as input text enters.  
+Providing  charging  options  is  via  USB-C  or  wirelessly  powered  using  a  rechargeable  battery, 
+therefore providing convenience in operating the glove offline or without external power.  
+This is a truly appropriate the communication device for the visually impaired people, which helps 
+them  interact  more  safely  and  freely  with  the  environment  friendly,  whether  at  the  workplace, 
+school, or any other social function. The glove is soft and light in flexibility so that one can wear 
+
+it  the  whole  day  without  feeling  any  discomfort.  It  minimizes  the  use  of  external  devices  and 
+batteries as well and saves the environment. 
+                  
+PROBLEM THAT THE INVENTION SOLVES: 
+Blind  individuals  have  extreme  difficulty  reading  printed  words,  and  particularly  handwritten 
+words. Screen readers and Braille printers are helpful for printed documents, but handwritten text, 
+messages, and notes online and in-person are largely inaccessible to them. As a result of the barrier, 
+blind individuals are unable to read letters, personal notes, work documents, and other forms of 
+social communication, which reduces their independence and ability to correspond in writing.   
+Existing  options,  such  as  dedicated  Braille  devices  or  transcription  service,  are  not  necessarily 
+easy, especially if real-time reading or if handwritten material is suddenly uncovered.   
+The bulk of present technologies are not also able to work properly in real-time or to frequently 
+identify diverse handwriting patterns.  
+Our answer to these challenges is the Handwritten to Speech Glove based on artificial intelligence. 
+With the application of artificial intelligence and optical character recognition (OCR) technology, 
+this  wearable  gadget  can  scan  and  transform  handwritten  information  into  speech,  allowing 
+
+visually impaired individuals to hear handwritten information in real-time and on their own. People 
+can  read  handwritten  information  anytime  wanted  without  the  expense  of  human  transcription 
+services  or  the  need  of  a  sighted  assistance  due  to  the  mobility  of  the  technology's  accessible 
+solution that is integrated into daily life. 
+Features: 
+• Artificial Intelligence Handwriting Recognition: Advanced AI handwriting recognition 
+detects various handwriting forms, bending the two forms practiced in schools: cursive and 
+print. 
+• Instant Speech Output: The glove recalls immediately the content made by writing after 
+identification. 
+• Comfortable and Wearable: The glove weighs nearly as a feather, and it's really simple 
+to put on and easily worn all day. 
+• Portable: It works from a rechargeable battery so that operating the glove anywhere at any 
+moment is no problem whatsoever. 
+• Customizable Speech: The user can adjust the volumes of speed and speech at his or her 
+convenience. 
+• All Languages Supported: This glove can support and identify every language for each 
+user. 
+Advantages: 
+• Enhanced Freedom: The independent users may now read handwritten text which usually 
+demands other people's help. 
+• Easy Information Access: Instant conversion from speech to text enables the user to see 
+the contents of handwritten notes, short messages, or documents very easily. 
+• Compact And Lightweight: Gloves wear just about anywhere. It serves its purpose even 
+for day-to day use. 
+
+• Conveniently  Beneficial  for  Learning  and  Work: An  individual  student  or  a  working 
+person  could  read  these handwritten  notes  or  documents  on  his  own,  which  further 
+increases productivity. 
+• Improved  Life  Quality: All  these  advancements  lead  to  visually  impaired  individuals 
+having  better  engagement  with  written  content,  thus  becoming  more  independent  and 
+included within society. 
+OBJECTIVE OF THE INVENTION  
+The primary objective of the AI-Powered Handwritten to Speech Glove is to offer individuals who 
+are blind or visually impaired a fast, convenient, and portable real-time way of accessing written 
+content without the assistance of a sighted person. This invention aims to:  
+• Enable Reading Independence: Allow individuals who are blind or visually impaired to 
+read  handwritten  and  individualized  materials,  such  as  notes,  work  papers,  and  their 
+friends' messages without the assistance of a sighted person. 
+• Real-Time Conversion: Provide a real-time technology solution for converting written or 
+handwritten letters, numbers, and symbols into speech that users can quickly access. 
+• Improve Accessibility: Begin to provide greater accessibility in handwritten content by 
+accurately  recognizing  different  handwriting  styles  and  converting  the  information  into 
+clear and understandable speech. 
+• Support Portability and Comfort: Provide  a portable and lightweight  wearable device 
+that is easy to use in numerous common everyday situations, to which the user, blind or 
+visually impaired, can take anywhere. 
+• Promote Productivity  and  Inclusion: Facilitate  a  blind  or  visually  impaired  person's 
+ability  to  read  messy,  or  in  other  ways  complicated- text  in  employment,  education,  or 
+personal capacity, as means of promoting independence and inclusivity in society. 
+• Support Multiple Languages: Provide a technology solution that is functional in supports 
+for  multiple  languages  in  the  speech  output,  so  that  people  of  different  cultural  and/or 
+linguistic backgrounds can engage with the text.                          
+ 
+
+     STATE OF THE ART/ RESEARCH GAP/NOVELTY 
+Sr. 
+No. 
+      Patent ID               Abstract       Research Gap          Novelty 
+1.  US11244670B2 Artificial Intelligence based 
+text-to-speech   system   and 
+methods for improving 
+speech  quality  using  neural 
+network. 
+There are patents, 
+which are mainly 
+directed    towards    the 
+printed  text  to  speech 
+conversion. They do not 
+provide for handwriting 
+material, real-time 
+processing, and 
+portability. 
+Our  system  is  real-
+time   in   converting 
+handwritten   text   to 
+speech using 
+advanced    AI     and 
+OCR  technology,  as 
+well    as    portability 
+and  easiness  in  daily 
+use. 
+2.  US11682388B2 Speech   AI   apparatus   for 
+recognizing  language  using 
+a microphone and processor 
+for processing speech 
+collected    across    multiple 
+languages  through  material 
+sound recording. 
+Such systems recognize 
+speech  but  won't  touch 
+handwritten-to-speech 
+systems in the 
+multilingual aspect. 
+This  system  directly 
+converts the 
+multilingual 
+handwritten text 
+without    OCR    into 
+real-time speech with 
+AI for 
+multilingualism   and 
+portability    for    all 
+users. 
+3.  US20190304435A1 An    artificial    intelligence 
+technique,  such  as  a  neural 
+network, improves the 
+training    and    quality    of 
+speech in a TTS system. 
+All techniques 
+available  currently  are 
+focused   on   improving 
+speech     inputs     from 
+typing  only  and mainly 
+do    not    address    any 
+handwritten input, 
+Our  innovation  is  a 
+unique focus on 
+handwritten input 
+and   processes   it   in 
+real-time  to  provide 
+high-quality    speech 
+generated  using  AI-
+driven    OCR    in    a 
+
+portability,    and    real-
+time application. 
+compact and portable 
+form. 
+ 
+STATE OF ART 
+Assistive  technologies  available  to  the  visually  impaired  today,  like  screen  readers  and  Braille 
+devices,  are  mainly  useful  for  printed  text.  Handwritten  text,  however,  is  still  generally 
+inaccessible to the visually impaired. For instance, most available solutions require some form of 
+manual transcription or are not able to quickly address the various expressions of handwriting. In 
+addition, many systems are generally designed to handle more static, printed content and do not 
+support the dynamic nature of handwritten materials or real-time requirements. 
+Current solutions have the following limitations: 
+• Printed  Text  to  Speech: All  current  text-to-speech  technologies,  including  OCR  tools, 
+work mainly with printed material; thus, they  afford very little independence to visually 
+impaired people navigating through handwritten work. 
+• Limited Handwriting Recognition: Techniques of handwriting recognition today cannot 
+deal  with  a  variety  of  handwriting  styles  or  do  so  in  real-time,  thus  hindering  their 
+dissemination for the purposes of aiding blind persons. 
+• Lack of Portability and Real-Time Access: Existing technologies to assist with reading 
+in  real-time  are  hindered  because  several  available  solutions  are  very  bulk  and  requires 
+constant power or prerecorded text to read aloud. 
+• Manual Transcription: Some solutions require human assistance or manual transcription 
+of handwritten text, which is hugely inefficient. 
+GAP IN RESEARCH: 
+1. Narrow Existing Solutions: They are mostly limited to the reading of printed text and do 
+not cater too much to handwritten materials. They are normally not designed for efficiency 
+in reading aloud handwritten text in real time. 
+
+2. Recognition  Accuracy  in  Handwriting: Despite  improvements  having  been  made  in 
+OCR technology, it has still fallen short when it comes to efficiently reading text written 
+using various nonstandard writing styles and writing by hand. 
+3. Real-Time Processing: Existing systems out there do not provide all aspects concerning 
+real-time processing of handwriting. They  are sluggish and require printed copies of the 
+handwritten texts to scan in or retype. 
+4. Portability: Most of the portable applications available today for text-to-speech are really 
+designed for use at static locations and do not function as well in portable travel capacity 
+for the day-to-day issues everyone has. 
+Novelty (ORIGINALITY): 
+The  AI  Commentary  Glove  for  Handwritten  to  Speech  Mapping  is  unique  from  the  others 
+mentioned above regarding certain aspects:  
+• Handwritten-to-Speech  conversion  in  real-time: While  others  can  only  read  printed 
+texts, our wonderful glove cinches handwritten texts by employing advanced AI together 
+with  Optical  Characters  Recognition  (OCR)  algorithms  for  immediate  conversion  of 
+handwritten texts into speech, hence giving access to handwritten material and making it 
+usable in real-time for persons with print disabilities.  
+• Portable  and  Wearable Design: A  wearable  device  thus  permits  the  person  to  read 
+handwritten  material  from  anywhere,  always.  This  technology  differs  from  conjoined 
+bulky or stationary devices and hence provides a user-friendly technology to people willing 
+to read handwritten materials in their day-to-day jobs. 
+• Different Styles of Handwriting: Here comes AI to play where the recognition carries an 
+Aqua  of  handwriting  styles  from  cursive  to  printed  texts.  Handwriting  recognition 
+technology has provided high accuracy with all the variability of printed and cursive texts 
+captured  by  the  glove,  whereas  other  industries  have  mostly  installed  printed  text 
+recognition abilities. 
+• Instant Access: Now, API expects that the AI glove will provide the expected experience, 
+where the text will convert to speech the moment it recognizes it. Thus, there will not be 
+
+expected  delays  or  pre-scanning/printed  handwritten  material  being  a  necessity  to  read. 
+This technology will therefore give true real-time reading, as opposed to several seconds 
+of preparation/university-giving out speech and pre-scanned or printed text for reading. 
+• Customized and Adjustable: The glove itself was made with end-users in mind, offering 
+speech rates and tones in an adjustable manner based on the specific preference of the user. 
+It is rather simple to use, with little or no interaction/effort, making it suitable for all ages. 
+• Lightweight  and  This  Product  Fits  Right  Into  the  Daily  Activities: The  glove  is 
+lightweight, comfortable, and easy to wear for anything the end user will be doing-whether 
+at work, school, or on the go. 
+EXPANSION: 
+Handwritten Speech Device for Blind People using AI provides any potential for development and 
+expansion into new features. We can expand upon this by adding features that provide benefit such 
+as: multilingual features and improved handwriting detection for various forms of writing, which 
+will make the glove more flexible and maybe attractive to a wider range of individuals. 
+• Multilingual Features: We can give improvements that can expand the system to support 
+new languages in the future, providing more inclusiveness for users. The glove can simply 
+read  and  translate  any  handwritten  content  using  universal  language  systems  making  it 
+more successful for other users. 
+• Improved Handwritten Detection: As AI technology and machine learning continue to 
+develop, the glove can be developed for even recognizing various styles of writing beyond 
+just print style, including cursive or messy handwriting styles, allowing the user access to 
+whatever handwritten script. 
+• Smart  Textiles  and  Wearables: Eventually,  a  future  idea  that  may  arise  could  include 
+making the technology used in the glove accessible and wearable along with smart textiles, 
+smart clothing like jackets, gloves, or shirts. This type of product would allow for altering 
+the accessibility of the content first hand even, with access for users - to be able to have 
+the advantage of content via Reading or note taking in casual usage limited or even re-used 
+consistently creating, even more, accessibility in a more casual usage. 
+
+• Integration with Educational and Workplace Tools: The glove's capabilities could be 
+extended to assist students and professionals by integrating it with digital learning tools 
+or workplace  devices.  This  would  help  users  in  real-time  reading  of  handwritten  notes, 
+textbooks,   or   documents   in   educational   or   work   environments,   improving   their 
+productivity and access to information. 
+• Sustainability and Accessibility: Future ideas could involve an accessible and affordable 
+way(s) to return to the technological interface or glove making it affordable or increasing 
+the sustainability of smart technologies, by having a larger  audience with it being cheap 
+and eco-friendly. 
+The AI-powered Handwritten to Speech Glove is distinguished from other technologies in the field 
+by providing a real-time use, portable, and general-purpose technology to convert handwritten text 
+into  spoken  word.  The  glove  is  not  just  one-way  transformation  like  your  based  examples  on 
+printed  text  but  addresses  a  completely  different  challenge  a  user  faces  when  trying  to  read 
+handwritten text and convert it into accessible audio. One of the key innovations is contributing to 
+independence and an improved quality of life for visually impaired population. The usability and 
+flexible nature, and extended palette of mixing with smart technologies, make it a suitable option 
+for an overall futuristic, commercially viable, sustainable assistive technology. 
+                  
+
+ 
+WORKING PROTOTYPE/ FORMULATION/ DESIGN/COMPOSITION:  
+Recognition of Writing by Machine and Artificial Intelligence Processing: 
+Handwriting  Capture: A glove  has  some  electrodes  or  small  cameras  which  generate 
+handwriting. Electrodes are embedded in the woven fabric of the glove. So, the glove can 
+sense the handwritten text being generated while writing. 
+• AI  Handwriting  Recognition: This  is  an  AI  and  OCR  (Optical  Character  Recognition) 
+characters pressed onto the surface detection. This system will employ machine learning 
+to encode the data into the making sense of the handwriting. This will be using the various 
+handwriting forms such as print or cursive identification. 
+Text to Speech Conversion: 
+• Real-Time  Processing: The  handwritten  data  is  converted  to data  in  the form  of digital 
+format. But, Once the characters are detected, the system automatically sends the output to 
+a TTS (Text-to-Speech) engine that will recreate the text as an audio. The TTS algorithms 
+allow the speech to sound more natural sound in a language for humans. 
+• Audio Output: The synthesized speech will exit the high-fidelity TTS signal through the 
+speaker of the smartphone, the smartphone Bluetooth headphones, if they are paired to the 
+phone or hearing aids if they are paired with the phone. 
+                                                                              
+Power Management & Energy Efficiency: 
+• Energy  Source: The  glove  is  powered  by  either  a  small  rechargeable  battery  or  a 
+supercapacitor that powers the AI, OCR, and TTS-driven technologies. Its charging can be 
+done via either USB-C or wirelessly based on the user's preference. 
+• Efficient Power Usage: The smart power management will distribute the power usage to 
+not  only  maximize  the  battery  power  while  still  providing  the  necessary  energy  for  the 
+
+glove's sensors and the processing system but also to hellfire the battery will not drain too 
+quickly. 
+• Low Power Consumption: The glove is made to operate on low-powered to ensure the 
+battery  lasts  for  long  time  usages.  It  is  made  for  daily  usage  and  should  provide  extend 
+functions without faulty recharging. 
+Device Integration & Personalization: 
+• Personal Preferences: A  truly  personalized  experience  is  thus  possible, regarding the 
+user's  comfort  with  respect  to  adjustable  parameters  like  speed,  volume,  and  sound 
+intensity, through personalization of the glove's text-to-speech and AI settings. 
+ 
+• Feedback  in  Real-time: The  glove  gives  the  user 
+real-time  feedback  along  with  the  chance  to  hear  the 
+text    being    transformed    while interacting    with 
+handwritten    materials.    Such    real-time    feedback 
+increases    the    enhancement    of    one    personalized 
+experience  that  stands  for  enhanced  dignity  for  any 
+independent reading. 
+• Integration Capacity: The gloves can link with a mobile phone or a tablet so that the user 
+can control the gloves or other functionalities enabled by the mobile app, which includes 
+adjusting glove settings or configuring glove performance with other assistive technology. 
+5. KEY HARDWARE COMPONENTS 
+• Optical Character Recognition (OCR Sensor/Camera): Cameras in smartphones have 
+been used as Optical character recognizers (OCRs) that read handwritten text in real-time. 
+The setup includes an OCR sensor or camera fitted into the glove that continues to read the 
+handwriting of the user and sends it to an address or processing unit. 
+
+ 
+AI Processor (Microcontroller Unit - MCU): MCU is the AI 
+processor that processes handwritten content using algorithms. 
+It  manages  text-to-speech  data  and  converts  text  online  with 
+OCR technology to perform handwriting recognition. 
+ 
+ 
+• Text-to-Speech (TTS) Engine: The processed text would be converted to human natural 
+voice  by  the  TTS.  After  this,  the  TTS  generates  audible  and  clear  speech  from  the 
+recognized text, which will be directly fed through the glove speaker or Bluetooth audio 
+devices like headphones or hearing aids to him/her. 
+• Rechargeable  Battery: These  are  the  house  by  which  the  operating  OCR  sensor,  AI 
+processor, and TTS engine inside the glove are powered. Therefore, rechargeable battery 
+for  glove  usage  will  cover  many  hours  of  operation  and  has  provision  for  charging  via 
+USB-C or wirelessly on a charging pad. 
+• Power Management Systems: The separate power management unit controls the energy 
+drawn off all components incorporated in the glove for energy efficiency. It thus enables 
+turning on the system to initiate the real-time processing of text into speech. 
+• Speaker or Bluetooth Module (Optional): This generates the acoustic counterpart of text 
+output. The speaker may, if desired, be housed within the glove or in a Bluetooth device 
+connected to the hearing aids or headphones for personalized listening by the user. 
+• Vibration  Motor  (Optional): The  glove  sends  haptic  feedback  to  alert  the  user  during 
+detection  and  conversion  of  text  or  whether  an  error  has  occurred.  The  vibration  motor 
+serves as another way to interface with the user. 
+
+             
+6. KEY SOFTWARE AND ALGORITHMS 
+Optical Character Recognition (OCR) Software: 
+• Function: This  is  the  software  that  does  optical  character recognition  (OCR).  It  makes 
+photos of handwritten text machine-readable, using preprocessing techniques and pattern 
+recognition of images, the software can identify different styles of handwriting in real time 
+such as cursive, print, and mixed writing. 
+• Algorithm: Real-time handwritten letter recognition and identification are being practiced 
+by the OCR system, utilizing state-of-the-art convolutional neural networks among other 
+deep  learning  algorithms.  Its  behaviour  totally  depends  upon  exactly  how  and  when  the 
+user writes hence improving the accuracy of the recognitions over time.  
+
+Artificial Intelligence (AI) Handwriting Recognition Algorithm: 
+• Function: An   algorithm   for   handwriting   recognition   via   artificial 
+intelligence  incorporates  functions  such  as  recognition  and  conversion  to 
+digital text of handwritten text through AI machine-learning models. In other 
+words, even the glove and the system will accommodate diverse styles, slants 
+and angles that handwriting will take in the future. 
+• Algorithm: It uses some deep learning models such as the RNN or LSTM 
+networks for sequence prediction tasks such as handwriting recognition. The 
+relationship over time could greatly improve the recognition due to reinforcement learning 
+in the system adaptive for each subject handwriting. 
+Text-to-Speech (TTS) Engine: 
+• Function: This  makes  it  possible  to  convert  the  digital  text  into  a  speech  that  can  be 
+listened  to  after  detection  of  the  handwritten  text  by  the  TTS  engine.  In  controls  like 
+volume,  tone,  and  speed,  the  TTS  output  of  the  speech  system  has  been  ensured  to  be 
+natural, clear, and varying according to the user's control. 
+• Algorithm: Text-to-speech  synthesis  takes  advantage  of  a  collection  of  waveform 
+generation  methods,  such  as  concatenative  synthesis  or  even  Neural  Networks-based 
+strategy,  to  produce  natural  sounding  speech  from  a  text.  Moreover,  the  engine  can  use 
+prosody control to introduce more expressivity and human likeness in voice production. 
+                            
+Power Management Software: 
+• Function: Efficient  operation  of  the  glove  relies  on  power  management  software  that 
+controls power with which operations are performed. Software controls the energy drain 
+
+of the rechargeable battery so that it does not affect the performance of the system, but the 
+longevity of the power supply remains. 
+• Algorithm: Power management software applies for different algorithms for optimizing 
+energy  by  dynamically  assigning  the  power  consumed  by  various  components  (such  as 
+OCR sensor, AI processor, TTS engine), while it is recording the level of the battery and 
+power consumption by the device. 
+User Interface (UI) Software: 
+• Function: It provides an easy-to-use interface for the users to communicate with the glove 
+and  change  the  parameters  such  as  volume,  tone,  and  speech  speed.  The  feedback 
+mechanisms  found  in  the  interface  for  user  feedback  such  as  a  voice  prompt  or  haptic 
+feedback tell the user whether the glove has detected text or when a problem has occurred. 
+• Algorithm: This  makes  the  glove  user  friendly  for  the  blind  people  by  using  gesture 
+control or speech recognition algorithms in the user interface. It can also have a very simple 
+tactile feedback or spoken instructions for ease of use. 
+      
+ 
+ 
+
+Adaptive Learning Algorithm (Optional): 
+• Function: The glove has a learning curve for every individual who uses it, as millions of 
+people  use  the  gadget  slowly  adapts  to  each person's  handwriting  style  and  improves 
+recognition accuracy. 
+• Algorithm: Active Learning  or  Continuous  learning  algorithms  that  evaluates  the  user 
+handwriting and keep improving the model for better conversion. 
+7. Possible Uses & Global Marketplace: 
+AI-powered  artificial  Handwritten  to  Speech  Gloves:  a  very  innovative  assistive  device  that 
+enables  visually  impaired  individuals  to  independently  read  handwritten  texts.  Very  interesting 
+and  diverse  markets  and  applications  could  be  covered  using  this  practitioner's  solution.  The 
+following are the prime end users and possible market segments:  
+Individual & Regular Users: 
+• For  persons  visually  impaired  in  day-to-day  activities: Applicable,  instantaneously 
+reading of handwritten letters, notes or any handwritten materials while doing daily tasks. 
+• Professionals  &  Students: Perfect  for  professionals  and  students  who  require  to  read 
+handwritten materials like work documents, textbooks or notes; this tool enables to read 
+them independently. 
+• Old  Age  or  Disabled  Individuals: users  help  themselves  to  independent  information 
+access by not needing to provide private information reading handwritten texts on paper. 
+Educational Institutions & Learning: 
+• For  the  Teachers  and  the  Students  in  Special  Education: It  could  be  employed  in 
+educational  institutions  to  allow  real-time  access  to  handwritten  matter  for  visually 
+impaired students, assisting in teaching. 
+• Libraries & Study Settings: A glove can help students and researchers read handwritten 
+books,  notes,  or  manuscripts  and  promote  inclusivity  in  academic  research  and  study 
+settings. 
+Emergency & Disaster Response Teams: 
+
+• Rescue  &  Disaster  Relief  Workers: In  emergency  situations  when  printed  or  digital 
+materials may not be present, handwriting on an instruction sheet, memos, or emergency 
+report can be read by blind rescue personnel. 
+• Military & Défense Personnel: Provides access for military or field personnel to written 
+mission  notes,  maps,  or  communication  documents  that  additionally  allow  operational 
+independence in remote areas regarding such access. 
+Healthcare & Wearable Technology Users: 
+• Patients  who  read  medical  notes  or  prescriptions: It  is  the  aid  that  facilitates  these 
+visually  impaired  persons  reading  medical  prescriptions,  doctor-related  notes,  or  health 
+instructions so they can keep a tab on their health. 
+• Healthcare  Smart  Wearable  Users: Users  could  integrate  the  technology  with  health 
+wearables like fitness trackers, smartwatches, and health monitoring devices to make the 
+products much more useful by reading handwritten health reports. 
+Green Tech and Aficionados for Sustainability: 
+• Environmentally   Consumptive: This   is   a   sustainable,   ecological   substitute   for 
+conventional  assistive  devices  that  can  help  decrease  dependency  on  such  electronic 
+devices that need continual recharges. 
+• Tech Developers & Innovators in Assistive Technology: Future applications could have 
+this technology integrated into assisted systems at large, as smart cities, public spaces, or 
+smart home devices. Hence, it would gradually reduce the reliance on traditional assistive 
+technologies and prove to be greener and more sustainable solutions. 
+Marketplace Scope: 
+• Target Costumer Segment: This glove is meant for a marketing approach directed toward 
+individuals  in  the  visually  impaired  community  along  with  their  family  members  and 
+caregivers. For them, this will become a practical, wearable accessory to enhance personal 
+independence and access to reading materials. 
+
+• B2B  Market: Installation  of  the  glove  will  be  advantageous  to  educational  institutions, 
+health  organizations,  emergency  responders,  as  well  as  governments  in  their  already 
+existing systems that cater for the visually impaired. 
+• Global Reach: The glove can reach most parts, if not all, of the markets in almost every 
+country,  with  potential  global  opportunity  in  both  developed  and  developing  worlds. 
+Accessibility is turning out to be an issue of critical importance worldwide. 
+EXISTING DATA:  
+Handwriting to speech technology is in very beginning stage as an assistive technology tool for 
+that  many  persons  with  blindness.  Most  of  the  academic research or  types  of  technological 
+advances  are  focused  only  on  the  technology  which  converts  printed  text  to  speech.  Very  few 
+concentrations  is  made  by  real  time  conversion  of  handwritten  text  into  speech.  OCR  and  TTS 
+applications have been well established for printed media. Still, these applications shape forms of 
+handwritten  content,  when  metamorphosed,  by the  last  turn  in  the  making  of  research  for 
+handwriting recognition. In handwriting recognition technology, research has advanced leaps and 
+bounds. But unfortunately, there are still problems with writing accuracy, speed conversion rates, 
+and adaptation to various styles of handwriting. 
+Currently,  within  the  last  few  years,  there  has  been  a  notable  improvement  in  the  accuracy  of 
+handwritten   text   through   highly   advanced   deep   learning-based   OCR   algorithms.   Besides 
+enhancing  the  real-time  processing,  such  application  in  a  wearable  portable  system,  like  that 
+developed here, AI-powered Handwritten to Speech Glove, is still quite unexplored. Most of the 
+existing systems are also bulky, coupled with external hardware, or quite often stationary. 
+Not that technology has been there in the mature phase of the years but rather has built high-quality 
+natural-sounding speech engines for text-to-speech; however, most of them focus only on printed 
+text  and  were  unable  to  process  dynamic  handwriting  inputs in  real  time.  It  is  the  real-time 
+wearable solution for seamless use by the visually impaired in their everyday life that our glove 
+using AI-powered OCR and TTS technology for  handwritten-to-speech conversion offers to fill 
+that void. 
+Moreover, the environment is more friendly with AI in assistive technologies. Most of the assistive 
+devices are powered by external sources like charging by batteries or power banks. AI-powered 
+
+Handwritten to Speech Glove utilizes very low power and lasts for recharging battery use. It offers 
+a much greener option compared with most traditional devices which add to electronic wastes. The 
+design also considers energy-efficient components to save battery use and optimize it without any 
+performance degradation. 
+Wearable  technologies  increasingly  become  commonplace;  smart  watches,  fitness  trackers,  or 
+even hearing aids. But, relative to these devices, the AI-powered Handwritten to Speech Glove, 
+while  sporting,  is  still  a  novelty  in  assistive  technology.  Indeed,  there  are  a  few  academic 
+prototypes  exploring  the  concept  of  wearable  OCR  solutions  for  real-time  speech,  but  these 
+prototypes  are  limited  in  terms  of  portability,  customization,  and  real-world  usability  compared 
+with  the  glove.  Hence,  the  AI-powered  Handwritten  to  Speech  Glove  lays  its  mark  in  making 
+affordable, practical, and highly efficient assistive devices for blind people. 
+USE AND DISCLOSURE (IMPORTANT): Please answer the following questions: 
+Have you described or show 
+A. in your invention/ design to anyone or in any conference? 
+ 
+YES (  ) NO (✓ ) 
+B. Have  you  made  any  attempts  to  commercialize  your  invention  (for 
+example,  have  you  approached  any  companies  about  purchasing  or 
+manufacturing your invention)?   
+YES (  ) NO (✓ ) 
+C. Has  your  invention  been  described  in  any  printed publication,  or  any 
+other form of media, such as the Internet? 
+ 
+YES (  ) NO (✓ ) 
+D. Do you have any collaboration with any other institute or organization 
+on the same? Provide name and other details. 
+YES (  ) NO (✓ ) 
+E. Name of Regulatory body or any other approvals if required.  YES (  ) NO (✓ ) 
+ 
+While  our  specific  invention  hasn’t  been  shared  publicly,  there  have  been  related 
+developments in handwriting recognition, glove, ai and assistive technologies: 
+
+• Handwriting  Recognition  for  the  Blind: Many AI  systems  can  recognize  handwritten 
+text,  but  they  often  face  challenges  in  real-time  processing  and  can’t  handle  various 
+handwriting styles well. 
+• Wearable Devices: They still work on printed texts, not real-time detection of handwritten 
+input, i.e. devices such as smartwatches, fitness trackers, and the like capable of reading 
+out to the visually impaired users. 
+• Optical  Character  Recognition  (OCR): OCR  technology  can  convert  printed digital 
+format text  into  speech  accurately.  However,  it  struggles  with  handwritten  text  due  to 
+differences  in diverse handwriting  styles,  making  it  less  effective  in  real-time access 
+situations. 
+• Text-to-Speech  Systems: Often  found  equipped  with  reading  features  for  printed  texts, 
+very  little  can  be  done  with  manuscripts  or  handwritten  works  using  such  equipment 
+devices for the visually impaired, usually purposeful. 
+• Hands-Free Conversions of Text to Speech: There are crudely put-thought prototypes of 
+handwritten to speech-the popularly heard word conversion declaimer, bulkier or sluggish, 
+but near nothing for casual use. 
+Gap in Current Technology: 
+Most  existing  technologies  are  focused  on  printed  text  but there’s a  need  for  a  real-time 
+handwritten text conversion to speech. Our glove fills that gap as a portable real-time system for 
+converting  handwritten  text  to  speech  giving  utmost  importance  to  personal  improvement  for  a 
+visually impaired individual. 
+Purpose and Scope: 
+• To  make  a  working  prototype  for  a  wearable  glove  which  converts  handwritten  text  to 
+audible speech.  
+• Study  comes  under  artificial  intelligence  handwriting  recognition  combining  text-to-
+speech technologies in wearable devices for improved use by the visually impaired.  
+
+• And lastly collaboration in hardware & software development also testing by users, repairs, 
+and commercialization for the product will take place.  
+Parties Involved: 
+• Names and addresses of the participating entities listed in the MOU. 
+Roles and Responsibilities: 
+• Each party's responsibility and obligations and follow rules and guidelines.  
+Duration: 
+• Specify the starting date and time the MOU will be effective, including the provisions of 
+its renewal or extension.  
+Confidentiality: 
+• Each party will keep confidential information, either from the other party or from a third 
+party or will not disclose confidential information to any third party without prior written 
+consent  of  the  disclosing  party.  Matters  of  confidential  nature  include  research  data, 
+technicalities, business plans and secret technologies. 
+Intellectual Property Rights: 
+• New  software  algorithms,  hardware  designs  and  any  other  inventions,  created  during 
+collaboration will be, by default, agreed to be owned jointly-unless decided otherwise.  
+• Joint  IP  development  will  lead  to  mutual  negotiation  of  terms  for  licensing  each  such 
+jointly developed IP and agreement in fair revenue sharing for such licenses. 
+Financial Arrangements: 
+• Any  financial  commitment  required,  including  funding,  resource  allocation,  or  revenue 
+sharing, must be stated. 
+Dispute Resolution: 
+
+• If any dispute between the parties arises under this MOU, the parties will try to resolve it 
+through  mediation.  If  mediation  doesn't  work,  an  arbitration  process  with  state  laws  of 
+[Insert Jurisdiction] will be adopted. 
+Amendment Procedures:   
+• That  would  explain  how  MOU  will  be  modified,  with  which  changes  needing  to  be  in 
+writing and signed by all parties. 
+Termination Clause: 
+• Explain the termination circumstances of the MOU with proper notice and obligations after 
+termination.  
+Non-Binding Nature: 
+• Specify whether the MOU is binding or non-binding, intent of document clarified. 
+Compliance with Laws: 
+• MOU will adhere to all corresponding local, state, or federal laws and regulations. 
+Force Majeure: 
+• Enclose clauses exempting the parties from their obligations under this agreement on the 
+account  of  compelling  unforeseen  circumstances,  which  shall  be  beyond  the  control  of 
+either party, such as natural calamities or acts of war. 
+Severability: 
+• Indicate that unless any provisions of the MOU stand unenforceable or invalid, the other 
+provisions shall remain in force.  
+Entire Agreement: 
+• Acknowledge that this memorandum is the complete understanding between both parties 
+and, therefore, substitutes all previous agreements or communications in place of such. 
+ 
+
+7. POTENTIAL CHANCES OF COMMERCIALIZATION: 
+The AI-based  Handwritten  to  Speech  Glove  has  tremendous  prospects  of  commercialization 
+because of many of the following trends and developments in technology: 
+• Rising  Demand  for  Assistive  Technologies: Increased  access  towards  disability  has 
+formed  an  increasing  interest  in  devices  to  help  the  impaired  navigate  with  better 
+independence. Most portable, wearable answers with wider propositions towards lifestyle 
+improvement are particularly in reading and interacting with handwritten material. 
+• Expansion  of  the  Market  for  Wearable  Technology: From  being  fitness  trackers  and 
+smartwatches, wearables have captured popular attention in everyday and ordinary lives. 
+Using handwritten speech recognition technology incorporated into wearables is now a big 
+opportunity  to  fulfil  the  requirements  of  blind and  visually  impaired  people  through  a 
+mobile  and  real-time  solution  for  reading  handwritten  documents  without  using  any 
+external devices. 
+• Continuous  Innovation  in  Artificial  Intelligence  and  Machine  Learning: Significant 
+improvements in AI and deep learning algorithms used for handwriting detection nowadays 
+promise real-time text-to-speech output and are becoming more and more feasible. These 
+advancements may take forward the highly effective wearable solutions for users who are 
+visually   impaired   and   lay   down   a   strong   foundation   for   mass   acceptance   and 
+commercialization. 
+• Environmental and Social Good: More consumers today are seeking goods that do some 
+social  good  and  are  sustainable,  and  this  glove  fits  that  larger  movement  toward 
+accessibility  and  usability  in  assistive  technology.  She'll  reduce  reliance  on  printed 
+materials and make her life more independent and accessible in many instances. 
+• Opportunity in the Fields of Health and Rehabilitation: The great promise of this glove 
+is  in  the  possible  application  in  the  healthcare  environment,  specifically  to  read  medical 
+documents,  prescriptions,  and  treatment  plans  necessary  for  the  patient  who  is  visually 
+impaired.  As  smart  healthcare  devices  become more  required,  the  glove  would  provide 
+
+some  assistance  to  the  visually  impaired  in  health  management  through  real-time 
+acquisition of critical written information. 
+8. These are a few companies which may be contacted for commercialization: 
+• AppleInc. 
+The  world's  largest  consumer  electronics  and  wearable  technology  company  whose  line 
+includes the Apple Watch can be a strong partner for assistive technologies.  
+• SamsungElectronics 
+Samsung  earns  the  majority  share  of  the  market  in  wearable  devices  that  comprise 
+smartwatches like the Galaxy brand and fitness trackers. 
+• HuaweiTechnologies 
+Huawei  released  smartwatches  and  fitness  bands  targeting  healthy  living,  with  many 
+wearables focusing on health and fitness monitoring. 
+• SonyCorporation 
+In the diverse industries  of wearables, Sony's technological development and innovation 
+include smart devices to audio devices with accentuated user experience. 
+• Garmin: 
+Garmin  offers  various  wearable  devices  in  the  category  of  fitness  and  outdoors  which 
+perfectly   matches   health-related   wearables   scope,   specializing   in   GPS   technology. 
+technologies. 
+• WHOOP 
+WHOOP manufactures a health tracker which can be used for monitoring and optimization 
+of performance; thus, it can be a partner for health management-oriented wearables. 
+• OuraHealthLtd. 
+Oura  Health  Ltd:  Oura  is  most  known  for  its  smart  ring  that  tracks  sleep,  activity,  and 
+readiness metrics; hence, it is a top candidate for advanced assistive tech for blind users.  
+• Aktiia 
+Aktiia is  a  specialist  in  continuous  blood  pressure  monitoring  by  means  of  wearable 
+technology, and so they might want to develop assistive technology for their portfolio. 
+• ApolloNeuroscience 
+Apollo Neuroscience  makes  a  wearable  device  which  offers  better  sleep  and  resilience 
+
+against stress and is thus a complete partner for  accessibility-oriented wearable assistive 
+technology. 
+9. Any basic patent which has been used, and we need to pay royalty to them: 
+An  extensive  study  of  all  patents  with  respect  to  handwriting  recognition  technology,  text-to-
+speech  (TTS) technology,  and  wearable  assistive  devices  was  done  prior  to  the  AI-Powered 
+Handwritten to Speech  Glove for the Visually  Impaired. The  reason  for  such activity was to be 
+able to ensure originality and avoid any infringements. But several patents and patent applications 
+were recognized to exist in this area: 
+• Handwriting Recognition System (US8432929B2): An object of this patent is the method 
+of recognizing handwritten characters to convert  them into machine-readable text which 
+utilizes both printed and handwritten text OCR capabilities. 
+• A  text-to-Voice  Conversion  System  (Patent  No.  US7633546B2): The concern  of  the 
+patent  is  that  it  involves  converting  text  into  speech  via  synthetic  speech  engines.  The 
+naturally intelligible output is the result of processing of digital text into its audio form. 
+• OCR     and     TTS     for     Wearable     Applications     (Patent     Application     No. 
+US20170124457A1):  
+- The  application  of  OCR  and  TTS  technologies  in  wearable  devices  to  help  the 
+visually impaired by converting on-the-fly inputted text into speech. 
+It  gives  the  general  ideas  underlying  handwriting  recognition  and  text-to-speech  integration;  by 
+contrast, the AI-powered Handwritten to Speech Glove opens a novel dimension and essentially 
+delineates  a  real-time  conversion  of  handwriting  to  speech  within  a  glove  application,  thereby 
+forming a radically different ambience of ownership from the intellectual property. 
+In  line  with  the  present  analysis,  therefore,  it  seems  that  our  system  does  not  represent  an 
+infringement  on  any  known  patent  and  thus  does  not  expect  this  patent  to  bring  any  royalties. 
+However, further recommendations would include conducting a full Freedom-to-Operate search 
+and  consulting  with  a  patent  attorney  who  may  be  able  to  guarantee  that  every  feature  of  our 
+product is indeed free from any possible infringement issues before eventual commercialization. 
+
+10. FILING CHOICES:   
+There are some suggested strategies with respect to patent registration of the AI Handwritten-to-
+Speech Glove for Visually Impaired People at this current stage of the development of the product: 
+• Provisional  Patent  Application: An  application  that  provides  early  priority  within  the 
+option  of  "patent  pending"  for  a  duration  of  12  months  during  which  time  further 
+refinements of the invention may take place, conducted market study and resource raise for 
+a full application. 
+• Non-Provisional (Complete) Patent Application: A non-provisional application should 
+be filed during that 12-month period to kick off the formal examination and grant process. 
+This  application  would  include  detailed  claims  and  describe  as  precisely  as  possible  the 
+scope of protection being sought. 
+• PCT   Filing   for   International   Protection: The   applicant   is   required   to   submit 
+international application under the Patent Cooperation Treaty through which it will be able 
+to obtain its patent protection in various countries. This application for patent filing will 
+ease prosecution in member countries of PCT at simultaneous prosecution. 
+This is indeed the most reasonable thing at this stage of development of the AI Handwritten-To-
+Speech Glove. It strategically forms a boon, in many aspects: 
+• Priority  Date Secured: Such  a  provisional  application  generates  an  early  priority  date. 
+This  is  very  important  in  patent  law,  as  it  will  determine  which  invention  supercedes 
+another. 
+• 12-Month Window for  Development: It  is  true  as  far  as  this  provisional  application  is 
+concerned;  the  inventors  have  the  full  12  months  in  making  developments  to  their 
+invention. Such market  potential assessment  can take place during the 12-month period, 
+additional  research  conducted,  and  resources  to  prepare  the  complete  application  can  be 
+gathered. 
+• Cost-Effective Initial Step: Provisional Application, therefore, is viewed to be less formal 
+and cheaper as opposed to Non-Provisional Application. It is mere skeleton description of 
+
+the  invention  as  against  detailed  patent  claims.  Thus,  it  is  a  minimum-cost  approach  for 
+starting the patent process. 
+This  should  follow  up  with  a  non-provisional  application  within  12  months  of  the  date  of  the 
+provisional patent application, or that provisional patent application will never result in an issued 
+patent. A complete non-provisional application must be filed to keep the priority date alive and 
+continue the patent application process before the provisional application ends.  
+One should not forget to get the advice of a highly experienced patent attorney about the proper 
+drafting of the provisional application as per the applicant's needs. There can also be a two-pronged 
+approach for follow-up filings including non-provisional and PCT international application when 
+international protection is sought. 
+KEYWORDS:  
+• Handwritten Text Recognition 
+• AI-powered Assistive Technology 
+• Wearable Assistive Devices 
+• Real-time Handwriting-to-Speech Conversion 
+• Smart Wearable Glove 
+• Handwritten to Speech Technology 
+• AI and OCR Integration 
+• Speech Output for Visually Impaired 
+• Portable Accessibility Solutions 
+• Wearable OCR Devices 
+• Handwriting Recognition for Accessibility 
+• Real-time Text-to-Speech Wearables 
+• Assistive Technology for the Blind 
+• Wearable OCR Technology 
+• Speech Assistive Devices 
+• AI-based Wearable Technologies 
+• Handwritten Content Conversion 
+
+ 
+                                            
+                                         NO OBJECTION CERTIFICATE 
+This  is  to  certify  that University/Organization Name, or  its  associates  shall  have  no 
+objection  if Lovely  Professional  University  files  an  IPR  (Patent/Copyright/Design/any 
+other.......) entitled "......................" including the name(s) of, ........... ...as inventors 
+who is(are) student(s)/employee(s) studying/ working in our University/ organization. 
+Further Name of the University/Organization shall not provide any financial assistance 
+in  respect of  said  IPR  nor shall  we raise  any  objection  later  with  respect  to  filing  or 
+commercialization of the said IPR or otherwise claim any right to the patent/invention at 
+any stage. 
+ 
+(Authorised Signatory) 

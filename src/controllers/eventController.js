@@ -849,3 +849,46 @@ export const submitQuiz = async (req, res) => {
       res.status(500).json({ message: "Quiz submission failed" });
   }
 };
+
+/* =====================================================
+   🎓 CERTIFICATE EMAIL
+===================================================== */
+export const emailCertificate = async (req, res) => {
+  try {
+    const { id: eventId } = req.params;
+    const event = await Event.findById(eventId);
+    if (!event) return res.status(404).json({ message: "Event not found" });
+
+    const participant = event.participants.find(p => String(p.userId) === String(req.user._id));
+    if (!participant) return res.status(403).json({ message: "User not registered for this event" });
+
+    const certificateLink = `http://localhost:5173/events/${event._id}/certificate`;
+
+    await notifyUser({
+      userId: req.user._id,
+      email: req.user.email,
+      title: "Your Certificate is Ready!",
+      message: `Congratulations! Your certificate for "${event.title}" is ready.`,
+      link: `/events/${event._id}/certificate`,
+      type: "event",
+      emailEnabled: true,
+      emailSubject: `Your Certificate for ${event.title}`,
+      emailHtml: `
+        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 600px; margin: auto;">
+           <h2 style="color: #4F46E5; margin-bottom: 5px;">Congratulations, ${req.user.name}!</h2>
+           <p style="color: #475569; font-size: 16px;">Your certificate of achievement for <strong>${event.title}</strong> is now available.</p>
+           <p style="color: #475569; font-size: 16px;">You can view, print, or download your certificate using the secure link below:</p>
+           <div style="text-align: center; margin: 30px 0;">
+             <a href="${certificateLink}" style="display: inline-block; padding: 14px 28px; background: #4F46E5; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.4);">View Certificate</a>
+           </div>
+           <p style="color: #94a3b8; font-size: 14px; border-top: 1px solid #e2e8f0; padding-top: 15px;">Keep building, learning, and participating on OneStop!</p>
+        </div>
+      `
+    });
+
+    res.json({ message: "Certificate emailed successfully!" });
+  } catch(err) {
+      console.error("EmailCertificate error:", err);
+      res.status(500).json({ message: "Failed to send email" });
+  }
+};
