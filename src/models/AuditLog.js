@@ -1,5 +1,6 @@
 // src/models/AuditLog.js
 import mongoose from "mongoose";
+import { emitPlatformPulse } from "../utils/notifyUser.js";
 
 /**
  * 🧾 Audit Log Schema
@@ -149,7 +150,7 @@ auditLogSchema.statics.record = async function ({
       };
     }
 
-    return await this.create({
+    const log = await this.create({
       action,
       targetUser,
       targetJob,
@@ -159,6 +160,11 @@ auditLogSchema.statics.record = async function ({
       details,
       context,
     });
+
+    // 🛰️ Emit real-time pulse
+    emitPlatformPulse(log);
+
+    return log;
   } catch (err) {
     console.error("❌ Failed to record audit log:", err.message);
   }

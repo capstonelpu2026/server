@@ -31,6 +31,28 @@ const quizQuestionSchema = new mongoose.Schema({
 }, { _id: true });
 
 /* =====================================================
+   💻 CODING PROBLEM SUB-SCHEMA
+===================================================== */
+const codingProblemSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String, required: true },
+  constraints: [{ type: String }],
+  inputFormat: { type: String },
+  outputFormat: { type: String },
+  starterCode: { type: String },
+  language: { type: String, default: 'javascript' },
+  testCases: [
+    {
+      input: { type: String, required: true },
+      expectedOutput: { type: String, required: true },
+      isVisible: { type: Boolean, default: true },
+      marks: { type: Number, default: 10 }
+    }
+  ],
+  difficulty: { type: String, enum: ['Easy', 'Medium', 'Hard'], default: 'Medium' }
+}, { _id: true });
+
+/* =====================================================
    👥 PARTICIPANT SUB-SCHEMA
 ===================================================== */
 const participantSchema = new mongoose.Schema(
@@ -63,7 +85,9 @@ const participantSchema = new mongoose.Schema(
         score: { type: Number, default: null },
         feedback: { type: String, default: "" },
         status: { type: String, enum: ["pending", "qualified", "disqualified"], default: "pending" },
-        evaluatedAt: Date
+        evaluatedAt: Date,
+        // ✨ New: Store submission details (e.g., code, quiz answers)
+        submissionData: mongoose.Schema.Types.Mixed 
       }
     ],
 
@@ -94,7 +118,7 @@ const eventSchema = new mongoose.Schema(
     organizer: { type: String, default: "" },
     category: {
       type: String,
-      enum: ["hackathon", "quiz", "case", "job-challenge", "workshop", "other"],
+      enum: ["hackathon", "quiz", "case", "job-challenge", "coding-competition", "workshop", "other"],
       default: "other",
     },
     tags: [{ type: String, trim: true }],
@@ -115,7 +139,7 @@ const eventSchema = new mongoose.Schema(
       {
          roundNumber: { type: Number, required: true },
          title: { type: String, required: true },
-         type: { type: String, enum: ["quiz", "submission", "interview", "other"], default: "submission" },
+         type: { type: String, enum: ["quiz", "coding", "submission", "interview", "other"], default: "submission" },
          description: { type: String, default: "" },
          startDate: Date,
          endDate: Date,
@@ -157,6 +181,12 @@ const eventSchema = new mongoose.Schema(
     quiz: {
       questions: [quizQuestionSchema],
       duration: { type: Number, default: 15 } // minutes
+    },
+
+    // ✨ Coding Config
+    coding: {
+      problems: [codingProblemSchema],
+      duration: { type: Number, default: 60 } // minutes
     },
 
     // Visibility
@@ -239,3 +269,4 @@ eventSchema.index({ "participants.registeredAt": 1 });
 ===================================================== */
 const Event = mongoose.model("Event", eventSchema);
 export default Event;
+

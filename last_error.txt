@@ -1,0 +1,7 @@
+ValidationError: CodingContest validation failed: description: Path `description` is required.
+    at Document.invalidate (C:\Users\chait\Downloads\FullStack\server\node_modules\mongoose\lib\document.js:3358:32)
+    at C:\Users\chait\Downloads\FullStack\server\node_modules\mongoose\lib\document.js:3119:17
+    at C:\Users\chait\Downloads\FullStack\server\node_modules\mongoose\lib\schemaType.js:1416:9
+    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)
+
+{"description":{"name":"ValidatorError","message":"Path `description` is required.","properties":{"message":"Path `description` is required.","type":"required","path":"description","value":"","length":0},"kind":"required","path":"description","value":""}}

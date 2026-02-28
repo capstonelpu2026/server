@@ -5,7 +5,7 @@ import nodemailer from "nodemailer";
    ✉️ Universal Email Utility - OneStop Hub
    Supports text and HTML emails (Gmail App Password)
 ===================================================== */
-export const sendEmail = async (to, subject, text = "", html = "") => {
+export const sendEmail = async (to, subject, text = "", html = "", attachments = []) => {
   try {
     // ✅ Configure Gmail SMTP Transporter
     const transporter = nodemailer.createTransport({
@@ -39,6 +39,7 @@ export const sendEmail = async (to, subject, text = "", html = "") => {
       subject,
       text: text || "No text content provided.",
       html: html || defaultHtml,
+      attachments,
     };
 
     // ✅ Send Email

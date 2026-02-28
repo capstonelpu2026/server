@@ -1,4 +1,4 @@
-// controllers/eventController.js
+import mongoose from "mongoose";
 import multer from "multer";
 import Event from "../models/Event.js";
 import Submission from "../models/Submission.js";
@@ -102,6 +102,12 @@ export const createEvent = async (req, res) => {
       prizes: parseMaybeJSON(body.prizes, []),
       rules: parseMaybeJSON(body.rules, []),
       faqs: parseMaybeJSON(body.faqs, []),
+      rounds: parseMaybeJSON(body.rounds, []),
+      coding: parseMaybeJSON(body.coding, { problems: [], duration: 60 }),
+      quiz: parseMaybeJSON(body.quiz, { questions: [], duration: 15 }),
+      customFields: parseMaybeJSON(body.customFields, []),
+      certificateConfig: parseMaybeJSON(body.certificateConfig, {}),
+      teamFinderEnabled: body.teamFinderEnabled !== undefined ? String(body.teamFinderEnabled) === "true" : true,
       visibility: body.visibility || "public",
       linkedJob: body.linkedJob || null,
       coverImage,
@@ -130,7 +136,12 @@ export const getEvents = async (req, res) => {
     const now = new Date();
 
     if (search) query.$text = { $search: search };
-    if (category && category !== "all") query.category = category;
+
+    // 🏷️ Category Normalization: Case-insensitive regex matching
+    if (category && category !== "all") {
+      const normalizedCat = String(category).trim().replace(/[\s_]+/g, "-");
+      query.category = { $regex: new RegExp(`^${normalizedCat}$`, "i") };
+    }
     
     // 👤 Mine Filter (Recruiter/Mentor managing own events)
     if (req.query.mine === "true" && req.user) {
@@ -149,7 +160,7 @@ export const getEvents = async (req, res) => {
 
     const total = await Event.countDocuments(query);
     const events = await Event.find(query)
-      .sort({ startDate: status === "past" ? -1 : 1 }) // Show newest past events first, else closest upcoming
+      .sort({ startDate: (status === "past" || status === "ended") ? -1 : 1 })
       .skip((Number(page) - 1) * Number(limit))
       .limit(Number(limit))
       .lean({ virtuals: true });
@@ -192,38 +203,35 @@ export const updateEvent = async (req, res) => {
       return res.status(400).json({ message: "Completed events cannot be modified." });
     }
 
-    const body = req.body;
     const updatable = [
-      "title",
-      "subtitle",
-      "description",
-      "organizer",
-      "category",
-      "tags",
-      "location",
-      "startDate",
-      "endDate",
-      "registrationDeadline",
-      "maxTeamSize",
-      "prizes",
-      "rules",
-      "faqs",
-      "visibility",
-      "linkedJob",
+      "title", "subtitle", "description", "organizer", "category",
+      "tags", "location", "startDate", "endDate", "registrationDeadline",
+      "maxTeamSize", "prizes", "rules", "faqs", "visibility", "linkedJob",
+      "rounds", "customFields", "certificateConfig", "teamFinderEnabled"
     ];
 
     updatable.forEach((k) => {
-      if (body[k] !== undefined) {
+      if (req.body[k] !== undefined) {
         if (["startDate", "endDate", "registrationDeadline"].includes(k)) {
-          event[k] = body[k] ? new Date(body[k]) : event[k];
-        } else if (["tags", "rules", "prizes", "faqs"].includes(k)) {
-          event[k] = parseMaybeJSON(body[k], event[k]);
+          if (req.body[k]) event[k] = new Date(req.body[k]);
+        } else if (["tags", "rules", "prizes", "faqs", "rounds", "customFields", "certificateConfig"].includes(k)) {
+          event[k] = parseMaybeJSON(req.body[k], event[k]);
         } else if (k === "maxTeamSize") {
-          event[k] = Number(body[k]) || event[k];
+          event[k] = Number(req.body[k]) || event[k];
+        } else if (k === "teamFinderEnabled") {
+          event[k] = String(req.body[k]) === "true";
         } else if (k === "linkedJob") {
-          event[k] = body[k];
+          const val = req.body[k];
+          if (!val || val === "null" || val === "undefined" || val === "") {
+            event[k] = null;
+          } else if (mongoose.Types.ObjectId.isValid(val)) {
+            event[k] = val;
+          } else {
+            // Ignore invalid ID strings to prevent 500 crashes, or just set to null
+            event[k] = null;
+          }
         } else {
-          event[k] = body[k];
+          event[k] = req.body[k];
         }
       }
     });
@@ -232,7 +240,8 @@ export const updateEvent = async (req, res) => {
     if (event.endDate <= event.startDate) {
       return res.status(400).json({ message: "End date must be after start date." });
     }
-    if (event.registrationDeadline > event.startDate) {
+    // Optimization: Allow registration deadline to be exactly the same as start (e.g. contest starts when registration ends)
+    if (new Date(event.registrationDeadline).getTime() > new Date(event.startDate).getTime()) {
       return res.status(400).json({ message: "Registration deadline must be before or on the event start date." });
     }
 
@@ -259,7 +268,11 @@ export const updateEvent = async (req, res) => {
     res.json(event);
   } catch (err) {
     console.error("UpdateEvent error:", err);
-    res.status(500).json({ message: "Error updating event" });
+    // Return more specific error message if it's a known Mongoose error
+    if (err.name === "ValidationError" || err.name === "CastError") {
+      return res.status(400).json({ message: err.message });
+    }
+    res.status(500).json({ message: "Error updating event. Check server logs." });
   }
 };
 
@@ -892,3 +905,123 @@ export const emailCertificate = async (req, res) => {
       res.status(500).json({ message: "Failed to send email" });
   }
 };
+
+/* =====================================================
+   💻 CODING CONTROLLER
+===================================================== */
+
+export const updateCoding = async (req, res) => {
+  try {
+    const { id: eventId } = req.params;
+    const { problems, duration } = req.body;
+
+    const event = await Event.findById(eventId);
+    if (!event) return res.status(404).json({ message: "Event not found" });
+
+    // 🔒 Security: Prevent modification of coding for past events
+    if (new Date() > new Date(event.endDate)) {
+      return res.status(400).json({ message: "Completed events cannot be modified." });
+    }
+
+    event.coding = {
+      problems,
+      duration: Number(duration) || 60
+    };
+
+    await event.save();
+    
+    await AuditLog.create({
+      action: "UPDATE_CODING",
+      performedBy: req.user._id,
+      details: `Updated coding problems for event "${event.title}"`,
+    });
+
+    res.json({ message: "Coding problems updated successfully", coding: event.coding });
+  } catch (err) {
+    console.error("UpdateCoding error:", err);
+    res.status(500).json({ message: "Error updating coding problems" });
+  }
+};
+
+export const getCoding = async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id).lean();
+    if (!event) return res.status(404).json({ message: "Event not found" });
+
+    // Sanitize: Hide hidden test cases from participants
+    const sanitizedProblems = event.coding?.problems?.map(p => ({
+      _id: p._id,
+      title: p.title,
+      description: p.description,
+      constraints: p.constraints,
+      inputFormat: p.inputFormat,
+      outputFormat: p.outputFormat,
+      starterCode: p.starterCode,
+      language: p.language,
+      difficulty: p.difficulty,
+      testCases: p.testCases?.filter(tc => tc.isVisible) || [] 
+    })) || [];
+
+    res.json({
+      duration: event.coding?.duration || 60,
+      problems: sanitizedProblems
+    });
+  } catch (err) {
+    console.error("GetCoding error:", err);
+    res.status(500).json({ message: "Error fetching coding problems" });
+  }
+};
+
+export const submitCoding = async (req, res) => {
+  try {
+     const { id: eventId } = req.params;
+     const { problemId, code, language, results } = req.body;
+
+     const event = await Event.findById(eventId);
+     if (!event) return res.status(404).json({ message: "Event not found" });
+
+     const participant = event.participants.find(p => String(p.userId) === String(req.user._id));
+     if (!participant) return res.status(403).json({ message: "User not registered for this event" });
+
+     // Store submission data in round status
+     const currentRound = participant.currentRound || 1;
+     let rStatus = participant.roundStatus.find(rs => rs.roundId === currentRound);
+     
+     if (!rStatus) {
+        rStatus = { roundId: currentRound, status: "pending", score: 0, feedback: "", submissionData: {} };
+        participant.roundStatus.push(rStatus);
+     }
+
+     if (!rStatus.submissionData) rStatus.submissionData = {};
+     if (!rStatus.submissionData.codingSubmissions) rStatus.submissionData.codingSubmissions = [];
+     
+     rStatus.submissionData.codingSubmissions.push({
+        problemId,
+        code,
+        language,
+        results,
+        submittedAt: new Date()
+     });
+     
+     // Auto-calculate score if results are provided (from frontend evaluation)
+     if (results && results.totalMarks) {
+        rStatus.score = (rStatus.score || 0) + results.totalMarks;
+     }
+
+     participant.submissionStatus = "submitted";
+     participant.lastUpdated = new Date();
+     await event.save();
+
+     await AuditLog.create({
+       action: "SUBMIT_CODING",
+       performedBy: req.user._id,
+       details: `Submitted solution for problem ${problemId} in event ${eventId}`,
+     });
+
+     res.json({ message: "Solution submitted successfully" });
+  } catch (err) {
+    console.error("SubmitCoding error:", err);
+    res.status(500).json({ message: "Error submitting coding solution" });
+  }
+};
+

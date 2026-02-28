@@ -222,7 +222,7 @@ export const createJob = async (req, res) => {
       salary,
       type,
       postedBy: recruiterId,
-      status: "active", // Defaulting to active for now if needed, or pending
+      status: "pending", // Requires admin approval before going live
     });
 
     await AuditLog.create({

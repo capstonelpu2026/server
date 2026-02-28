@@ -89,3 +89,36 @@ export const updateUserRole = async (req, res) => {
     res.status(500).json({ message: "Error updating user role" });
   }
 };
+
+/* =====================================================
+   👤 UPDATE MY PROFILE (Self)
+===================================================== */
+export const updateMe = async (req, res) => {
+  try {
+    const { name, avatar, mobile, bio } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (name) user.name = name;
+    if (avatar) user.avatar = avatar;
+    if (mobile) user.mobile = mobile;
+    if (bio !== undefined) user.bio = bio;
+
+    await user.save();
+
+    res.json({
+      message: "Profile updated successfully ✅",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        role: user.role,
+        mobile: user.mobile
+      },
+    });
+  } catch (err) {
+    console.error("Error updating profile:", err);
+    res.status(500).json({ message: "Error updating profile" });
+  }
+};
+

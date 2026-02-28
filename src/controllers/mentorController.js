@@ -128,21 +128,37 @@ export const getMentees = async (req, res) => {
   try {
     const Session = (await import("../models/Session.js")).default;
     
-    // Find all sessions where this user is the mentor (confirmed or completed)
+    // Find all sessions where this user is the mentor
     const sessions = await Session.find({
       mentor: req.user._id,
       status: { $in: ["confirmed", "completed", "pending"] }
-    }).populate("mentee", "name email avatar mobile role");
+    }).populate("mentee", "name email avatar mobile role")
+      .sort({ scheduledDate: -1 });
 
-    // Extract unique mentees
-    const menteeMap = new Map();
+    // Extract unique mentees with stats
+    const menteeStats = new Map();
+    
     sessions.forEach(session => {
-      if (session.mentee && !menteeMap.has(session.mentee._id.toString())) {
-        menteeMap.set(session.mentee._id.toString(), session.mentee);
+      if (!session.mentee) return;
+      const mid = session.mentee._id.toString();
+      
+      if (!menteeStats.has(mid)) {
+        menteeStats.set(mid, {
+          ...session.mentee.toObject(),
+          sessionCount: 0,
+          completedCount: 0,
+          lastSession: session.scheduledDate,
+          recentTopic: session.serviceTitle
+        });
       }
+      
+      const stats = menteeStats.get(mid);
+      stats.sessionCount += 1;
+      if (session.status === 'completed') stats.completedCount += 1;
+      // Since it's sorted by date descending, the first one seen is the latest
     });
 
-    const mentees = Array.from(menteeMap.values());
+    const mentees = Array.from(menteeStats.values());
 
     res.json({ mentees });
   } catch (err) {
@@ -178,16 +194,11 @@ export const giveFeedback = async (req, res) => {
     }
 
     // 🧾 Log mentor feedback
-    await AuditLog.create({
+    await AuditLog.record({
       action: "MENTOR_FEEDBACK",
       performedBy: mentor._id,
       targetUser: mentee._id,
-      targetUserSnapshot: {
-        name: mentee.name,
-        email: mentee.email,
-        role: mentee.role,
-      },
-      details: `Mentor ${mentor.email} gave feedback to ${mentee.email}: "${feedback}"`,
+      details: `${mentor.name} shared a professional performance review for ${mentee.name}.`,
     });
 
     // 📢 Notify Mentee

@@ -169,8 +169,10 @@ app.use("/api/admin/analytics", adminAnalyticsRoutes);
 // 🏆 Contests & Hackathons
 import contestRoutes from "./routes/contestRoutes.js";
 import jobRoutes from "./routes/jobRoutes.js"; // New Job Routes
+import codingContestRoutes from "./routes/codingContestRoutes.js";
 app.use("/api", contestRoutes);
 app.use("/api", jobRoutes);
+app.use("/api/code-arena", codingContestRoutes);
 
 // 🤖 AI/ATS Resume Analyzer & Mock Interview
 import atsRoutes from "./routes/atsRoutes.js";
@@ -180,7 +182,9 @@ app.use("/api/ai", aiRoutes);
 
 // 🌍 Community Feed
 import feedRoutes from "./routes/feedRoutes.js";
+import platformRoutes from "./routes/platformRoutes.js";
 app.use("/api/feed", feedRoutes);
+app.use("/api/platform", platformRoutes);
 
 // 🚀 Project Showcase
 import projectRoutes from "./routes/projectRoutes.js";

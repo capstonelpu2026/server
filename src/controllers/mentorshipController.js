@@ -3,6 +3,7 @@ import Session from "../models/Session.js";
 import AuditLog from "../models/AuditLog.js";
 import Conversation from "../models/Conversation.js";
 import Message from "../models/Message.js";
+import Withdrawal from "../models/Withdrawal.js";
 import { notifyUser } from "../utils/notifyUser.js";
 
 // 📌 Get All Approved Mentors
@@ -381,27 +382,58 @@ export const getMentorStats = async (req, res) => {
    try {
       const mentorId = req.user._id;
 
-      const stats = await Session.aggregate([
+      const sessionsStats = await Session.aggregate([
          { $match: { mentor: mentorId, status: "completed" } },
          { 
             $group: { 
                _id: null, 
                totalEarnings: { $sum: "$price" },
                totalMinutes: { $sum: "$duration" },
-               completedSessions: { $sum: 1 }
+               completedSessions: { $sum: 1 },
+               avgRating: { $avg: "$rating" }
             } 
          }
       ]);
 
       const pendingRequests = await Session.countDocuments({ mentor: mentorId, status: "pending" });
 
-      const data = stats[0] || { totalEarnings: 0, totalMinutes: 0, completedSessions: 0 };
+      const data = sessionsStats[0] || { totalEarnings: 0, totalMinutes: 0, completedSessions: 0, avgRating: 0 };
+
+      // 2. Fetch Withdrawn Amounts
+      const withdrawalStats = await Withdrawal.aggregate([
+         { $match: { mentor: mentorId, status: { $ne: "rejected" } } },
+         { $group: { _id: null, totalWithdrawn: { $sum: "$amount" } } }
+      ]);
+      const totalWithdrawn = withdrawalStats[0]?.totalWithdrawn || 0;
+      const availableBalance = data.totalEarnings - totalWithdrawn;
+
+      // Calculate Aura (Real-time dynamic score)
+      // Base aura from ratings + activity engagement
+      const ratingWeight = (data.avgRating || 0) * 1000;
+      const activityWeight = data.completedSessions * 100;
+      const auraScore = Math.floor(ratingWeight + activityWeight) || 500; // Default 500 for new mentors
+
+      // Calculate Next Payout Date (15th of Every Month)
+      const today = new Date();
+      let payoutDate = new Date(today.getFullYear(), today.getMonth(), 15);
+      if (today.getDate() >= 15) {
+         payoutDate.setMonth(payoutDate.getMonth() + 1);
+      }
+
+      // Calculate Payout Progress (0 to 15 days cycle)
+      const dayOfMonth = today.getDate();
+      const progress = dayOfMonth <= 15 ? Math.floor((dayOfMonth / 15) * 100) : Math.floor(((dayOfMonth - 15) / 15) * 100);
 
       res.json({
-         earnings: data.totalEarnings,
+         earnings: availableBalance, // Display withdrawable balance
+         totalEarnings: data.totalEarnings,
          hours: (data.totalMinutes / 60).toFixed(1),
          sessions: data.completedSessions,
-         pending: pendingRequests
+         pending: pendingRequests,
+         aura: auraScore,
+         withdrawn: totalWithdrawn,
+         nextPayout: payoutDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+         payoutProgress: Math.min(progress, 100)
       });
 
    } catch (err) {
@@ -409,3 +441,79 @@ export const getMentorStats = async (req, res) => {
       res.status(500).json({ message: "Failed to fetch stats" });
    }
 };
+// 📌 Request Withdrawal (Mentor Only)
+export const requestWithdrawal = async (req, res) => {
+   try {
+      const mentorId = req.user._id;
+      const { amount } = req.body;
+
+      if (!amount || amount < 500) {
+         return res.status(400).json({ message: "Minimum withdrawal amount is ₹500" });
+      }
+
+      // 1. Calculate Total Earnings from Completed Sessions
+      const sessionsStats = await Session.aggregate([
+         { $match: { mentor: mentorId, status: "completed" } },
+         { $group: { _id: null, totalEarnings: { $sum: "$price" } } }
+      ]);
+      const totalEarned = sessionsStats[0]?.totalEarnings || 0;
+
+      // 2. Calculate already Requested/Processed Withdrawals
+      const withdrawalStats = await Withdrawal.aggregate([
+         { $match: { mentor: mentorId, status: { $ne: "rejected" } } },
+         { $group: { _id: null, totalWithdrawn: { $sum: "$amount" } } }
+      ]);
+      const totalWithdrawn = withdrawalStats[0]?.totalWithdrawn || 0;
+
+      // 3. Check Available Balance
+      const availableBalance = totalEarned - totalWithdrawn;
+
+      if (amount > availableBalance) {
+         return res.status(400).json({ message: `Insufficient balance. Available: ₹${availableBalance}` });
+      }
+
+      // 4. Create Withdrawal Request
+      const withdrawal = await Withdrawal.create({
+         mentor: mentorId,
+         amount,
+         status: "pending"
+      });
+
+      // 5. Notify Mentor
+      await notifyUser({
+         userId: mentorId,
+         email: req.user.email,
+         title: "Withdrawal Requested",
+         message: `Your request for ₹${amount} is being processed.`,
+         type: "payout",
+         emailEnabled: true,
+         emailSubject: "Withdrawal Request Received - OneStop",
+         emailHtml: `<p>We have received your withdrawal request for <strong>₹${amount}</strong>. Our team will verify your Aura compliance and process it within 3-5 business days.</p>`
+      });
+
+      // 6. Log Audit
+      await AuditLog.record({
+         action: "WITHDRAWAL_REQUEST",
+         performedBy: mentorId,
+         details: `${req.user.name} initiated a Quantum Withdrawal for ₹${amount}.`
+      });
+
+      res.status(201).json({ message: "Withdrawal request submitted! ✅", withdrawal, availableBalance: availableBalance - amount });
+
+   } catch (err) {
+      console.error("Withdrawal error:", err);
+      res.status(500).json({ message: "Failed to process withdrawal request" });
+   }
+};
+
+// 📌 Get Withdrawal History (Mentor Only)
+export const getMyWithdrawals = async (req, res) => {
+   try {
+      const withdrawals = await Withdrawal.find({ mentor: req.user._id }).sort({ createdAt: -1 });
+      res.json(withdrawals);
+   } catch (err) {
+      console.error("Get withdrawals error:", err);
+      res.status(500).json({ message: "Failed to fetch withdrawal history" });
+   }
+};
+

@@ -145,4 +145,23 @@ export const broadcastNotification = async ({
     console.error("❌ broadcastNotification error:", err.message);
   }
 };
+
+/**
+ * 🛰️ Global Activity Pulse Emitter
+ * Broadcasts significant events to the Global Activity Feed in real-time.
+ */
+export const emitPlatformPulse = (activity) => {
+  if (globalIO) {
+    const significantActions = [
+      "USER_REGISTERED", "JOB_POSTED", "CONTEST_CREATED", 
+      "CERTIFICATE_CLAIMED", "MENTOR_APPROVED", "CONTEST_JOINED", 
+      "INTERVIEW_COMPLETED", "CANDIDATE_HIRED"
+    ];
+
+    if (significantActions.includes(activity.action)) {
+      globalIO.emit("pulse:new", activity);
+      console.log(`🛰️ Pulse Emitted: ${activity.action}`);
+    }
+  }
+};
   

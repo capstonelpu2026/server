@@ -230,14 +230,14 @@ export const evaluateSolution = asyncHandler(async (req, res) => {
     res.json(evaluation);
 
   } catch (error) {
-    console.error("Code Arena Evaluation Error:", error.message);
+    console.error("Code Arena Evaluation Error:", error.message, error.stack);
     res.json({ 
         status: "Rejected",
         score: 0,
         complexity: { time: "O(?)", space: "O(?)" },
         feedback: "The AI Judge is temporarily unavailable to grade this submission.",
-        bugs: ["Evaluation failed due to network overload."],
-        efficiencyTips: ["Please try submitting again in a moment."],
+        bugs: ["Evaluation failed due to network overload.", `Engine Error: ${error.message}`],
+        efficiencyTips: ["Please try submitting again in a moment.", text ? `Engine output: ${text.substring(0, 100)}` : ""],
         testCaseResults: []
     });
   }

@@ -259,4 +259,13 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return bcrypt.compare(enteredPassword, this.password);
 };
 
+// 🔍 Text Search Index (Mentors, Jobs, etc)
+userSchema.index({ 
+   name: "text", 
+   email: "text",
+   "mentorProfile.expertise": "text", 
+   "mentorProfile.company": "text" 
+});
+
 export default mongoose.model("User", userSchema);
+

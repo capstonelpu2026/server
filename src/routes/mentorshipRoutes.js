@@ -9,8 +9,11 @@ import {
   reviewSession,
   getMySessions,
   updateSessionStatus,
-  getMentorStats
+  getMentorStats,
+  requestWithdrawal,
+  getMyWithdrawals
 } from "../controllers/mentorshipController.js";
+
 
 const router = express.Router();
 
@@ -19,6 +22,13 @@ router.get("/list", protect, getMentors);
 
 // 📌 Get Mentor Stats (Earnings, Hours)
 router.get("/stats", protect, authorize(["mentor"]), getMentorStats);
+
+// 📌 Request Withdrawal (Mentor Only)
+router.post("/withdraw", protect, authorize(["mentor"]), requestWithdrawal);
+
+// 📌 Get Withdrawal History (Mentor Only)
+router.get("/withdrawals/history", protect, authorize(["mentor"]), getMyWithdrawals);
+
 
 // 📌 Get Specific Mentor Details (Public/Protected)
 router.get("/:id", protect, getMentorById);
