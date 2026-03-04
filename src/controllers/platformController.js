@@ -30,18 +30,28 @@ export const getPlatformPulse = async (req, res) => {
  */
 export const getPlatformStats = async (req, res) => {
   try {
-    const [userCount, jobCount, contestCount, hireCount] = await Promise.all([
-      User.countDocuments(),
-      Job.countDocuments(),
-      CodingContest.countDocuments(),
-      AuditLog.countDocuments({ action: "CANDIDATE_HIRED" })
+    const [professionalsCount, opportunitiesCount, contestCount, hireCount] = await Promise.all([
+      // 🧑‍🎓 History of every professional who ever joined
+      AuditLog.countDocuments({ 
+        action: { $in: ["USER_REGISTERED", "REGISTER_RECRUITER", "CREATE_ADMIN", "OAUTH_LOGIN"] } 
+      }),
+      // 💼 History of every job opportunity ever posted
+      AuditLog.countDocuments({ action: "CREATE_JOB" }),
+      // 🏆 Live competitions currently running
+      CodingContest.countDocuments({ status: { $ne: "ended" } }),
+      // 🎓 Every successful career milestone (hire)
+      AuditLog.countDocuments({ 
+        action: "UPDATE_APPLICATION_STATUS",
+        details: /→ hired/i 
+      })
     ]);
 
+    // Baseline remains 0 to show 100% database-driven history as requested
     res.json({
-      activeProfessionals: userCount + 1240, // baseline + real
-      globalOpportunities: jobCount + 45,
+      activeProfessionals: professionalsCount,
+      globalOpportunities: opportunitiesCount,
       competitionsLive: contestCount,
-      careerMilestones: hireCount + 890
+      careerMilestones: hireCount
     });
   } catch (err) {
     console.error("Stats error:", err);

@@ -65,6 +65,13 @@ router.post("/register-candidate", async (req, res) => {
     });
 
     await OTP.deleteMany({ email: normalizedEmail, purpose: "email-verification" });
+    
+    await AuditLog.create({
+      action: "USER_REGISTERED",
+      targetUser: user._id,
+      performedBy: user._id,
+      details: `New candidate joined the platform (${user.email})`,
+    });
 
     res.status(201).json({
       message: "Candidate registered successfully ✅",
