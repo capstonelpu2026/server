@@ -668,7 +668,7 @@ export const chatWithAI = asyncHandler(async (req, res) => {
       messages: [
         {
           role: "system",
-          content: "You are a friendly, encouraging, and expert Career Coach named 'OneStop Copilot'. Your goal is to help students and job seekers with career advice, resume tips, and interview prep. Keep answers concise (under 100 words) unless asked for details. Use emojis occasionally."
+          content: "You are a professional, status-driven, and expert AI Career Strategist. Your goal is to help students and job seekers with high-level career strategy, roadmap execution, and professional growth. Keep answers professional and expert-grade. Use emojis sparingly."
         },
         { role: "user", content: message }
       ],
@@ -1073,5 +1073,125 @@ export const identifyBrand = asyncHandler(async (req, res) => {
     res.json(JSON.parse(completion.choices[0]?.message?.content || "{}"));
   } catch (e) {
     res.json({ isValid: false });
+  }
+});
+
+/**
+ * @desc Generate Strategic Career Roadmap (90-day plan)
+ * @route POST /api/ai/career/roadmap
+ */
+export const generateCareerRoadmap = asyncHandler(async (req, res) => {
+  const { goal, currentSkills, experience } = req.body;
+
+  if (!goal) {
+    res.status(400);
+    throw new Error("Career goal is required");
+  }
+
+  try {
+    const groq = getGroqClient();
+    const prompt = `
+      You are a high-performance Career Strategist. Generate a structured 90-day Roadmap to achieve this goal: "${goal}".
+      Candidate Context: Skills: ${currentSkills || "Not specified"}, Experience: ${experience || "Not specified"}.
+
+      Return ONLY a JSON object:
+      {
+        "objective": "High-level strategic objective (under 15 words)",
+        "phases": [
+          {
+            "title": "Phase name (e.g. Initialization)",
+            "subtitle": "Short descriptive goal",
+            "timeframe": "Days 1-30",
+            "progress": 0,
+            "status": "Pending",
+            "tasks": ["Task 1", "Task 2", "Task 3"]
+          },
+          { "title": "...", "subtitle": "...", "timeframe": "Days 31-60", "progress": 0, "status": "Pending", "tasks": [] },
+          { "title": "...", "subtitle": "...", "timeframe": "Days 61-90", "progress": 0, "status": "Pending", "tasks": [] }
+        ]
+      }
+      Rules: EXACTLY 3 phases. Tasks must be highly practical and corporate-focused. No markdown.
+    `;
+
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.6,
+      response_format: { type: "json_object" }
+    });
+
+    res.json(JSON.parse(completion.choices[0]?.message?.content || "{}"));
+  } catch (error) {
+    console.error("Roadmap Gen Error:", error);
+    res.status(500).json({ message: "Strategic roadmap generation failed." });
+  }
+});
+
+/**
+ * @desc Get Market Intelligence & Sector Analysis
+ * @route POST /api/ai/career/insight
+ */
+export const getMarketIntelligence = asyncHandler(async (req, res) => {
+  const { sector = "Technology", role = "Software Engineer" } = req.body;
+
+  try {
+    const groq = getGroqClient();
+    const prompt = `
+      Provide a Real-time Market Intelligence report for the "${role}" role in the "${sector}" sector.
+      Return ONLY a JSON object:
+      {
+        "demandIndex": "High" | "Rising" | "Stable" | "Niche",
+        "yoyGrowth": "+14.2% (example)",
+        "avgSalary": "₹24L+ (example)",
+        "salaryBracket": "Top 5% bracket (example)",
+        "topTechStack": ["React 19", "Bun", "Go", "PostgreSQL"],
+        "briefing": "1 sentence insight on why this is happening."
+      }
+      Format: Strict JSON.
+    `;
+
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.1-8b-instant",
+      temperature: 0.2,
+      response_format: { type: "json_object" }
+    });
+
+    res.json(JSON.parse(completion.choices[0]?.message?.content || "{}"));
+  } catch (error) {
+    res.status(500).json({ message: "Intelligence report failed." });
+  }
+});
+
+/**
+ * @desc Get Skill Density Assessment Data
+ * @route POST /api/ai/career/skills
+ */
+export const getSkillAssessment = asyncHandler(async (req, res) => {
+  const { currentSkills = [], targetGoal } = req.body;
+
+  try {
+    const groq = getGroqClient();
+    const prompt = `
+      Analyze these skills: [${currentSkills.join(", ")}] against the goal: "${targetGoal}".
+      Provide density points (0-100) for these 4 dimensions: Architecture, Backend, AI/ML, Product.
+      Return ONLY a JSON object:
+      {
+        "density": { "architecture": 85, "backend": 70, "aiml": 40, "product": 60 },
+        "syncStatus": "92% (example)",
+        "missingCritical": "Explain the biggest gap in 1 sentence."
+      }
+    `;
+
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.1-8b-instant",
+      temperature: 0.2,
+      response_format: { type: "json_object" }
+    });
+
+    res.json(JSON.parse(completion.choices[0]?.message?.content || "{}"));
+  } catch (error) {
+    res.status(500).json({ message: "Skill assessment failed." });
   }
 });

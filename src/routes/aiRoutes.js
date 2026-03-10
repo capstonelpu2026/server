@@ -11,7 +11,10 @@ import {
   generateQuiz,
   analyzeAudioAnswer,
   validateBrand,
-  identifyBrand
+  identifyBrand,
+  generateCareerRoadmap,
+  getMarketIntelligence,
+  getSkillAssessment
 } from "../controllers/aiController.js";
 import { 
   generateProblems, 
@@ -41,6 +44,9 @@ router.post("/job-eligibility", checkJobEligibility);
 /* Aadhaar analysis route removed */
 router.post("/enhance-cv", enhanceCV);
 router.post("/quiz/generate", generateQuiz);
+router.post("/career/roadmap", generateCareerRoadmap);
+router.post("/career/insight", getMarketIntelligence);
+router.post("/career/skills", getSkillAssessment);
 
 // 🚀 OneStop Code Arena
 router.post("/code-arena/generate", generateProblems);

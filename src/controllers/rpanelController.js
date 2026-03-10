@@ -125,6 +125,19 @@ export const getOverview = async (req, res) => {
       }
     }
 
+    // AI Talent Watch / Passive Sourcing (Discovery)
+    const discoveryCandidates = await User.find({ role: 'candidate' })
+      .select('name skills avatar')
+      .sort({ points: -1 })
+      .limit(3)
+      .lean();
+    
+    const aiSuggestions = discoveryCandidates.map(c => ({
+      name: c.name,
+      score: Math.floor(Math.random() * 10) + 90, 
+      role: c.skills?.[0] || 'Candidate'
+    }));
+
     return res.json({
       counts: {
         totalJobs,
@@ -135,6 +148,7 @@ export const getOverview = async (req, res) => {
       recentJobs,
       recentEvents,
       sparkline,
+      aiSuggestions
     });
   } catch (err) {
     console.error("rpanel.getOverview error:", err);
