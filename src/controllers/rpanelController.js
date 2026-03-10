@@ -326,6 +326,7 @@ export const listJobApplications = async (req, res) => {
           title: job.title
         },
         coverLetter: app.coverLetter,
+        resumeUrl: app.resumeUrl || app.candidate?.resumeUrl,
         status: app.status,
         appliedAt: app.createdAt,
         atsScore: app.atsScore || 0,
@@ -550,6 +551,7 @@ export const listAllApplications = async (req, res) => {
           title: app.job?.title
         },
         coverLetter: app.coverLetter,
+        resumeUrl: app.resumeUrl || app.candidate?.resumeUrl,
         status: app.status,
         appliedAt: app.createdAt,
         atsScore: app.atsScore || 0,
