@@ -264,6 +264,14 @@ export const submitAssessment = async (req, res) => {
     assessment.averageScore = Math.round(avgScore * 100) / 100;
     await assessment.save();
 
+    // ✨ GAMIFICATION: Reward XP for passing
+    if (passed) {
+      const bonus = percentage === 100 ? 50 : 0; // Perfect score bonus
+      await User.findByIdAndUpdate(req.user._id, {
+        $inc: { "points": 100 + bonus }
+      });
+    }
+
     res.json({
       message: passed ? "Congratulations! You passed! 🎉" : "Assessment submitted",
       result: {

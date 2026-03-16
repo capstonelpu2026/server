@@ -47,6 +47,82 @@ const extractJSON = (text, isArray = false) => {
 };
 
 /**
+ * @desc Generate contest metadata (title, prizes, rules) for CreateContest
+ * @route POST /api/ai/code-arena/ai-meta
+ * @access Private
+ */
+export const generateContestMeta = asyncHandler(async (req, res) => {
+    const { prompt } = req.body;
+    if (!prompt) {
+        res.status(400);
+        throw new Error("Prompt is required");
+    }
+
+    try {
+        const groq = getGroqClient();
+        const aiPrompt = `
+      Act as a Lead Technical Program Manager and Contest Architect. 
+      Generate a complete coding contest configuration based on this requirement: "${prompt}"
+
+      Provide the following:
+      1. title: Professional and catchy name for the contest.
+      2. subtitle: A short inspiring tagline.
+      3. description: Detailed objectives and introduction (2-3 paragraphs).
+      4. company: The organization name (e.g., "Google", "OneStop Hub").
+      5. difficulty: Beginner, Intermediate, Advanced, or Expert.
+      6. tags: Array of 3-5 technical tags (e.g., ["Python", "DSA", "Logic"]).
+      7. rules: Array of 5 professional contest rules.
+      8. prizes: Array of 3 prize objects with "rank" (number), "title", "amount", and "perks" (array of strings).
+      9. aiSuggestedTopic: A specific technical topic for problems (e.g. "Dynamic Programming").
+      10. aiSuggestedLanguage: Recommended language (e.g. "python").
+      11. aiSuggestedCount: Suggested number of problems (3-5).
+
+      Return ONLY a JSON object. No markdown.
+      
+      Structure:
+      {
+        "title": "...",
+        "subtitle": "...",
+        "description": "...",
+        "company": "...",
+        "difficulty": "...",
+        "tags": ["...", "..."],
+        "rules": ["...", "..."],
+        "prizes": [
+           { "rank": 1, "title": "...", "amount": "...", "perks": ["..."] }
+        ],
+        "aiSuggestedTopic": "...",
+        "aiSuggestedLanguage": "...",
+        "aiSuggestedCount": 3
+      }
+    `;
+
+        let text = "";
+        try {
+            const chatCompletion = await groq.chat.completions.create({
+                messages: [{ role: "user", content: aiPrompt }],
+                model: "llama-3.3-70b-versatile",
+                temperature: 0.7,
+                max_tokens: 2048,
+            });
+            text = chatCompletion.choices[0]?.message?.content || "";
+        } catch (err) {
+            const gemini = getGeminiClient();
+            const model = gemini.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const result = await model.generateContent(aiPrompt);
+            text = result.response.text();
+        }
+
+        const meta = extractJSON(text, false);
+        res.json({ meta });
+
+    } catch (error) {
+        console.error("AI Meta Generation Error:", error);
+        res.status(500).json({ message: "AI failed to generate contest metadata" });
+    }
+});
+
+/**
  * @desc Generate coding problems for Code Arena
  * @route POST /api/ai/code-arena/generate
  * @access Public

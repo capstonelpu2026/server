@@ -1,16 +1,10 @@
 // src/utils/notifyUser.js
 import Notification from "../models/Notification.js";
 import { sendEmail } from "./sendEmail.js";
+import User from "../models/User.js";
 
-// ✅ Keep a reference to the global Socket.io instance
 let globalIO = null;
 
-/**
- * 🔌 Set Socket.io instance (called from socket.js)
- * Example:
- *   import { setSocketInstance } from "./utils/notifyUser.js";
- *   setSocketInstance(io);
- */
 export const setSocketInstance = (ioInstance) => {
   globalIO = ioInstance;
   console.log("🔗 Global Socket.io instance linked to notifyUser.js");
@@ -18,8 +12,6 @@ export const setSocketInstance = (ioInstance) => {
 
 /**
  * 🔔 Smart Universal Notification Utility
- * ---------------------------------------
- * Handles persistence, email, and real-time socket emission.
  */
 export const notifyUser = async ({
   userId = null,
@@ -34,67 +26,75 @@ export const notifyUser = async ({
   persist = true,
   emailEnabled = false,
   realtime = true,
+  aggregationKey = null,
 }) => {
   try {
     let notificationDoc = null;
+    let targetUser = null;
 
-    // ✅ 1️⃣ Save notification in DB (optional)
+    if (userId && !broadcast) {
+      targetUser = await User.findById(userId).select("email notificationSettings");
+    }
+
     if (persist && userId) {
-      notificationDoc = await Notification.create({
-        user: userId,
-        title,
-        message,
-        link,
-        type,
-        read: false,
-      });
+      if (aggregationKey) {
+        const existing = await Notification.findOne({ user: userId, aggregationKey, read: false });
+        if (existing) {
+          existing.count += 1;
+          existing.message = `${title} (${existing.count} total updates)`;
+          existing.createdAt = new Date();
+          notificationDoc = await existing.save();
+        }
+      }
+
+      if (!notificationDoc) {
+        notificationDoc = await Notification.create({
+          user: userId,
+          title,
+          message,
+          link,
+          type,
+          aggregationKey,
+          read: false,
+        });
+      }
     }
 
-    // ✅ 2️⃣ Send Email (optional)
-    if (emailEnabled && email) {
-      const html =
-        emailHtml ||
-        `
-        <div style="font-family:'Segoe UI',sans-serif;padding:20px;">
-          <h2 style="color:#6c63ff;">${title}</h2>
-          <p style="font-size:1rem;color:#333;">${message}</p>
-          ${
-            link
-              ? `<p><a href="${process.env.FRONTEND_URL}${link}" 
-                  style="color:#6c63ff;text-decoration:none;">View on OneStop Hub →</a></p>`
-              : ""
-          }
-          <hr style="border:none;border-top:1px solid #eee;margin-top:20px;" />
-          <p style="font-size:0.8rem;color:#888;">This is an automated notification from OneStop Hub.</p>
+    const canSendEmail = broadcast || (targetUser?.notificationSettings?.email?.[type] !== false);
+    const userEmail = email || targetUser?.email;
+
+    if (emailEnabled && userEmail && canSendEmail) {
+      const html = emailHtml || `
+        <div style="font-family:'Segoe UI',sans-serif;padding:20px;max-width:600px;margin:auto;border:1px solid #eee;border-radius:12px;">
+          <h2 style="color:#6366f1;">${title}</h2>
+          <p style="font-size:1rem;color:#333;line-height:1.6;">${message}</p>
+          ${link ? `<div style="margin-top:25px;"><a href="${process.env.FRONTEND_URL}${link}" style="background:#6366f1;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:bold;">View Update →</a></div>` : ""}
+          <hr style="border:none;border-top:1px solid #eee;margin-top:30px;" />
+          <p style="font-size:0.75rem;color:#999;">Manage your alerts in OneStop Hub Profile Settings.</p>
         </div>
-        `;
-
-      await sendEmail(email, emailSubject, html, true);
-      console.log(`📧 Email sent to ${email} — ${title}`);
+      `;
+      await sendEmail(userEmail, emailSubject, html, true);
     }
 
-    // ✅ 3️⃣ Real-time socket emission (optional)
-    if (realtime && globalIO) {
+    const canSendRealtime = broadcast || (targetUser?.notificationSettings?.inApp?.[type] !== false);
+    
+    if (realtime && globalIO && canSendRealtime) {
       const payload = {
         _id: notificationDoc?._id || Date.now().toString(),
-        title,
-        message,
+        title: notificationDoc?.title || title,
+        message: notificationDoc?.message || message,
         link,
         type,
+        count: notificationDoc?.count || 1,
         read: false,
         createdAt: new Date(),
       };
 
       if (broadcast) {
         globalIO.emit("notification:new", payload);
-        console.log(`🌍 Broadcast notification: ${title}`);
       } else if (userId) {
-        const targetRoom = userId.toString();
-        globalIO.to(targetRoom).emit("notification:new", payload);
-        console.log(`📢 Real-time notification sent to ${targetRoom}: ${title}`);
+        globalIO.to(userId.toString()).emit("notification:new", payload);
       }
-    } else if (!globalIO && realtime) {
-      console.warn("⚠️ Socket instance not initialized — notification not emitted in real-time");
     }
 
     return notificationDoc;
@@ -105,7 +105,6 @@ export const notifyUser = async ({
 
 /**
  * 🌍 Broadcast Helper
- * Send system-wide announcements (optional persistence).
  */
 export const broadcastNotification = async ({
   title,
@@ -117,13 +116,7 @@ export const broadcastNotification = async ({
 }) => {
   try {
     if (persist) {
-      await Notification.create({
-        user: null,
-        title,
-        message,
-        link,
-        type,
-      });
+      await Notification.create({ user: null, title, message, link, type });
     }
 
     if (realtime && globalIO) {
@@ -137,9 +130,6 @@ export const broadcastNotification = async ({
         createdAt: new Date(),
       };
       globalIO.emit("notification:new", payload);
-      console.log(`🌍 Broadcast notification emitted: ${title}`);
-    } else if (!globalIO && realtime) {
-      console.warn("⚠️ Socket instance not initialized — broadcast not emitted");
     }
   } catch (err) {
     console.error("❌ broadcastNotification error:", err.message);
@@ -148,7 +138,6 @@ export const broadcastNotification = async ({
 
 /**
  * 🛰️ Global Activity Pulse Emitter
- * Broadcasts significant events to the Global Activity Feed in real-time.
  */
 export const emitPlatformPulse = (activity) => {
   if (globalIO) {
@@ -160,8 +149,6 @@ export const emitPlatformPulse = (activity) => {
 
     if (significantActions.includes(activity.action)) {
       globalIO.emit("pulse:new", activity);
-      console.log(`🛰️ Pulse Emitted: ${activity.action}`);
     }
   }
 };
-  

@@ -530,6 +530,71 @@ export const generateJobDescription = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc Auto-generate Event Description for Recruiters
+ * @route POST /api/ai/event-description
+ * @access Public
+ */
+export const generateEventDescription = asyncHandler(async (req, res) => {
+  const { title, category, organizer, location, query } = req.body;
+  
+  if (!title) {
+    res.status(400);
+    throw new Error("Event Title is required");
+  }
+
+  try {
+    const groq = getGroqClient();
+    const prompt = `
+      You are a professional event coordinator. Write a polished, engaging event description for this event.
+      
+      ${query ? `SPECIAL QUERY/FOCUS: "${query}"` : ""}
+
+      Event: ${title}
+      Category: ${category || "General"}
+      Organizer: ${organizer || "Not specified"}
+      Location: ${location || "Online"}
+
+      FORMAT RULES:
+      - Use PLAIN TEXT only. No markdown. No bolding. No hashtags.
+      - Use headers like:
+          About the Event:
+          What to Expect:
+          Key Highlights:
+          Who Should Attend:
+      - Use a dash (- ) for bullet points.
+      - Make it sound exciting, professional, and invite-worthy.
+      - Length: 200-300 words.
+
+      Begin directly with "About the Event:"
+    `;
+
+    const completion = await groq.chat.completions.create({
+      messages: [
+        { role: "system", content: "You write professional event descriptions in clean plain text. Use plain section headers followed by a colon, and dashes for bullet points. No markdown." },
+        { role: "user", content: prompt }
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+    });
+
+    let description = completion.choices[0]?.message?.content || "";
+    
+    // Clean up any stray markdown
+    description = description
+      .replace(/^#{1,6}\s*/gm, "")
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/\*(.*?)\*/g, "$1")
+      .trim();
+
+    res.json({ description });
+
+  } catch (error) {
+    console.error("AI Gen Event Description Error:", error.message);
+    res.status(500).json({ description: "Failed to generate event description. Please try again." });
+  }
+});
+
+/**
  * @desc Generate Cover Letter for Candidates
  * @route POST /api/ai/cover-letter
  * @access Public
@@ -1166,6 +1231,7 @@ export const getMarketIntelligence = asyncHandler(async (req, res) => {
 /**
  * @desc Get Skill Density Assessment Data
  * @route POST /api/ai/career/skills
+ * @access Public
  */
 export const getSkillAssessment = asyncHandler(async (req, res) => {
   const { currentSkills = [], targetGoal } = req.body;
@@ -1193,5 +1259,101 @@ export const getSkillAssessment = asyncHandler(async (req, res) => {
     res.json(JSON.parse(completion.choices[0]?.message?.content || "{}"));
   } catch (error) {
     res.status(500).json({ message: "Skill assessment failed." });
+  }
+});
+
+/**
+ * @desc Auto-generate Coding Directives for Code Arena
+ * @route POST /api/ai/coding-directives
+ * @access Public
+ */
+export const generateCodingDirectives = asyncHandler(async (req, res) => {
+  const { topic, difficulty, language } = req.body;
+  
+  if (!topic) {
+    res.status(400);
+    throw new Error("Topic is required");
+  }
+
+  try {
+    const groq = getGroqClient();
+    const prompt = `
+      You are a technical mentor. Suggest 3-4 specific "Custom Directives" for a coding challenge.
+      These directives should help narrow down the focus and make the challenge more interesting or specific.
+
+      Topic: ${topic}
+      Difficulty: ${difficulty || "Medium"}
+      Language: ${language || "JavaScript"}
+
+      Examples of directives:
+      - "Focus on memory management and pointers"
+      - "Use graph theory concepts like Dijkstra's algorithm"
+      - "Apply functional programming patterns"
+      - "Ensure the solution handles massive data streams"
+
+      Return ONLY a single paragraph with 3-4 clear, technical directives separated by commas. No markdown.
+    `;
+
+    const completion = await groq.chat.completions.create({
+      messages: [
+        { role: "system", content: "You provide short, technical coding directives in plain text." },
+        { role: "user", content: prompt }
+      ],
+      model: "llama-3.1-8b-instant",
+      temperature: 0.7,
+      max_tokens: 150
+    });
+
+    res.json({ directives: completion.choices[0]?.message?.content || "" });
+  } catch (error) {
+    console.error("Directives Generation Error:", error);
+    res.status(500).json({ message: "Failed to generate directives." });
+  }
+});
+
+/**
+ * @desc Generate AI Bio/Headline
+ * @route POST /api/ai/generate-bio
+ * @access Public
+ */
+export const generateBio = asyncHandler(async (req, res) => {
+  const { name, skills } = req.body;
+
+  if (!name || !skills) {
+    res.status(400);
+    throw new Error("Name and skills are required for bio generation.");
+  }
+
+  try {
+    const groq = getGroqClient();
+    const prompt = `
+      Create a professional, modern, and engaging 2-3 sentence bio/headline for a portfolio.
+      Name: ${name}
+      Skills: [${Array.isArray(skills) ? skills.join(", ") : skills}]
+
+      The bio should:
+      1. Start with an impactful statement.
+      2. Mention the core expertise from the skills list.
+      3. End with a goal or value proposition (e.g., 'Passionate about building scalable web solutions').
+      4. Avoid being too generic or flowery.
+      5. Keep it under 200 characters if possible.
+
+      Return ONLY the bio text. No introduction or quotes.
+    `;
+
+    const completion = await groq.chat.completions.create({
+      messages: [
+        { role: "system", content: "You are an expert career coach and professional writer." },
+        { role: "user", content: prompt }
+      ],
+      model: "llama-3.1-8b-instant",
+      temperature: 0.7,
+      max_tokens: 100
+    });
+
+    res.json({ bio: completion.choices[0]?.message?.content || "" });
+  } catch (error) {
+    console.error("Bio Generation Error:", error);
+    res.status(500).json({ message: "Failed to generate bio." });
   }
 });

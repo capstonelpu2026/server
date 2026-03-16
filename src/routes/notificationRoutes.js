@@ -33,6 +33,19 @@ router.patch("/mark-all/read", protect, async (req, res) => {
 });
 
 /* =====================================================
+   🗑️ Delete single notification
+===================================================== */
+router.delete("/:id", protect, async (req, res) => {
+  try {
+    const notification = await Notification.findOneAndDelete({ _id: req.params.id, user: req.user._id });
+    if (!notification) return res.status(404).json({ message: "Notification not found" });
+    res.json({ message: "Notification deleted" });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to delete notification" });
+  }
+});
+
+/* =====================================================
    🔔 Admin/Server Send Notification
 ===================================================== */
 router.post("/send", async (req, res) => {

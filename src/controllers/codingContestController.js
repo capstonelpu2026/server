@@ -509,6 +509,24 @@ export const submitSolution = async (req, res) => {
     participant.lastSubmissionAt = new Date();
 
     await contest.save();
+
+    // ✨ GAMIFICATION: Reward XP only if this is the FIRST time they solve this problem
+    if (submissionData.status === "accepted") {
+      const isFirstSuccess = participant.submissions.filter(s => 
+        String(s.problemId) === String(problemId) && s.status === "accepted"
+      ).length === 1;
+
+      if (isFirstSuccess) {
+        await User.findByIdAndUpdate(req.user._id, {
+          $inc: { 
+            "points": 50,
+            "arenaStats.totalXP": 50,
+            "arenaStats.solvedChallenges": 1
+          }
+        });
+      }
+    }
+
     res.json({ message: "Solution submitted!", score, status: submissionData.status });
   } catch (err) {
     console.error("submitSolution error:", err);

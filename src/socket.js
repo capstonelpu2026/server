@@ -424,6 +424,11 @@ export default function socketServer(httpServer) {
       if (roomId) socket.to(roomId).emit("p2p:code_update", code);
     });
 
+    socket.on("p2p:media_toggle", (data) => {
+      const roomId = p2pRooms.get(socket.id);
+      if (roomId) socket.to(roomId).emit("p2p:media_toggle", data);
+    });
+
     socket.on("p2p:leave_room", async () => {
       const roomId = p2pRooms.get(socket.id);
       if (roomId) {

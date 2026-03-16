@@ -1,5 +1,6 @@
 import asyncHandler from "express-async-handler";
 import Job from "../models/Job.js";
+import User from "../models/User.js";
 import Application from "../models/Application.js";
 import cloudinary from "../utils/cloudinary.js";
 import fs from "fs";
@@ -109,6 +110,13 @@ export const applyToJob = asyncHandler(async (req, res) => {
 
   job.applicants.push(application._id);
   await job.save();
+
+  // ✨ GAMIFICATION: Reward activity
+  // 10 XP base for applying, 10 XP bonus for high ATS score (>70)
+  const bonus = atsScore >= 70 ? 10 : 0;
+  await User.findByIdAndUpdate(userId, {
+    $inc: { points: 10 + bonus }
+  });
 
   return res.status(201).json({
     success: true,

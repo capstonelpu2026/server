@@ -47,6 +47,30 @@ router.post("/jobs", protect, authorize(["recruiter"]), async (req, res) => {
       message: "Job created successfully and pending admin approval ✅",
       job,
     });
+
+    // 🚀 Background Task: Notify all candidates about the new opening
+    // We do this AFTER sending the response to keep the UI snappy
+    try {
+      const candidates = await User.find({ role: "candidate" }).select("_id email");
+      
+      const notifications = candidates.map(candidate => ({
+        userId: candidate._id,
+        title: "💼 New Job Alert!",
+        message: `${req.user.orgName || 'A recruiter'} just posted: "${title}" in ${location || 'Remote'}. Check it out!`,
+        link: `/opportunities/jobs`, // Could be `/jobs/${job._id}` if job is approved immediately, but pending for now
+        type: "job",
+        persist: true,
+        realtime: true
+      }));
+
+      // Fire and forget individual notifications
+      // Note: In a massive app, use a Queue/BullMQ. For now, Promise.all is fine.
+      Promise.all(notifications.map(n => notifyUser(n))).catch(err => console.error("Job Broadcast Error:", err));
+
+    } catch (err) {
+      console.error("Failed to broadcast job notification:", err);
+    }
+
   } catch (err) {
     console.error("Error creating job:", err);
     res.status(500).json({ message: "Error creating job", error: err.message });

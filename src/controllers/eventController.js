@@ -159,8 +159,12 @@ export const getEvents = async (req, res) => {
     }
 
     const total = await Event.countDocuments(query);
+    
+    // Sort logic: Upcoming should be soonest first (1), everything else (including All Time) most recent first (-1)
+    const sortOrder = (status === "upcoming" || status === "live" || status === "ongoing") ? 1 : -1;
+
     const events = await Event.find(query)
-      .sort({ startDate: (status === "past" || status === "ended") ? -1 : 1 })
+      .sort({ startDate: sortOrder })
       .skip((Number(page) - 1) * Number(limit))
       .limit(Number(limit))
       .lean({ virtuals: true });
@@ -197,6 +201,12 @@ export const updateEvent = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ message: "Event not found" });
+
+    // 🔒 Security: Ownership check for non-admins
+    const isSuperAdmin = ["admin", "superadmin"].includes(req.user.role);
+    if (!isSuperAdmin && String(event.createdBy) !== String(req.user._id)) {
+      return res.status(403).json({ message: "Access Denied: You can only modify your own events." });
+    }
 
     // 🔒 Security: Prevent modification of past events
     if (new Date() > new Date(event.endDate)) {
@@ -281,6 +291,12 @@ export const deleteEvent = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ message: "Event not found" });
+
+    // 🔒 Security: Ownership check for non-admins
+    const isSuperAdmin = ["admin", "superadmin"].includes(req.user.role);
+    if (!isSuperAdmin && String(event.createdBy) !== String(req.user._id)) {
+      return res.status(403).json({ message: "Access Denied: You can only delete your own events." });
+    }
 
     // 🔒 Security: Prevent deletion of past events
     if (new Date() > new Date(event.endDate)) {
@@ -738,6 +754,12 @@ export const updateQuiz = async (req, res) => {
 
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ message: "Event not found" });
+
+    // 🔒 Security: Ownership check for non-admins
+    const isSuperAdmin = ["admin", "superadmin"].includes(req.user.role);
+    if (!isSuperAdmin && String(event.createdBy) !== String(req.user._id)) {
+      return res.status(403).json({ message: "Access Denied: You can only modify your own events." });
+    }
 
     // 🔒 Security: Prevent modification of quizzes for past events
     if (new Date() > new Date(event.endDate)) {

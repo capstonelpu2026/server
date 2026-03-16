@@ -219,6 +219,24 @@ const userSchema = new mongoose.Schema(
       }
     ],
 
+    /* ⚙️ Notification Preferences */
+    notificationSettings: {
+      email: {
+        jobs: { type: Boolean, default: true },
+        social: { type: Boolean, default: true },
+        system: { type: Boolean, default: true }
+      },
+      inApp: {
+        jobs: { type: Boolean, default: true },
+        social: { type: Boolean, default: true },
+        system: { type: Boolean, default: true }
+      },
+      push: {
+        enabled: { type: Boolean, default: false },
+        subscription: { type: Object, default: {} } // For WebPush API
+      }
+    },
+
     savedJobs: [{ type: mongoose.Schema.Types.ObjectId, ref: "Job" }],
 
     applications: [

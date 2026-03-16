@@ -17,8 +17,20 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["system", "admin", "candidate", "recruiter", "job"],
+      enum: ["system", "admin", "candidate", "recruiter", "job", "social", "mentorship"],
       default: "system",
+    },
+    link: {
+      type: String,
+      default: "",
+    },
+    aggregationKey: {
+      type: String, // e.g., "like_post_123"
+      index: true,
+    },
+    count: {
+      type: Number,
+      default: 1,
     },
     read: {
       type: Boolean,
