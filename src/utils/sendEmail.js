@@ -10,8 +10,8 @@ export const sendEmail = async (to, subject, text = "", html = "", attachments =
     const BREVO_API_KEY = process.env.BREVO_API_KEY || "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";
     
     // Note: The sender email MUST be the one you verified in Brevo.
-    // I am using the email from your screenshot, but it will fallback to process.env.EMAIL_USER locally
-    const senderEmail = process.env.EMAIL_USER || "chaithanya9727@gmail.com"; 
+    // I am hardcoding it to your email so that no Render .env variable overrides it with a bad value!
+    const senderEmail = "chaithanya9727@gmail.com"; 
 
     // ✅ Default HTML Template if none provided
     const defaultHtml = `
