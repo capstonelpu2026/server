@@ -358,8 +358,17 @@ router.post("/verify-otp", async (req, res) => {
 
 router.put("/reset-password", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, otp } = req.body;
     const normalizedEmail = (email || "").toLowerCase();
+
+    const record = await OTP.findOne({
+      email: normalizedEmail,
+      otp,
+      purpose: "password-reset",
+    });
+
+    if (!record || record.expiresAt < new Date())
+      return res.status(400).json({ message: "Invalid or expired OTP" });
 
     const user = await User.findOne({ email: normalizedEmail });
     if (!user) return res.status(404).json({ message: "User not found" });
