@@ -361,6 +361,7 @@ router.put("/reset-password", async (req, res) => {
     const { email, password, otp } = req.body;
     const normalizedEmail = (email || "").toLowerCase();
 
+    // Verify OTP first
     const record = await OTP.findOne({
       email: normalizedEmail,
       otp,
