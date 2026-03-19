@@ -60,7 +60,10 @@ export const authorize = (...allowedRoles) => {
       // Always allow SuperAdmin to bypass
       if (userRole === "superadmin") return next();
 
-      if (!allowedRoles.map((r) => r.toLowerCase()).includes(userRole)) {
+      // Flatten input to handle both variadic and array-style calls
+      const roles = allowedRoles.flat().map((r) => r.toLowerCase());
+
+      if (!roles.includes(userRole)) {
         console.warn(
           `🚫 Unauthorized Access: "${userRole}" tried to access "${req.originalUrl}"`
         );

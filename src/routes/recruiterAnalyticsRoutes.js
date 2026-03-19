@@ -5,7 +5,7 @@ import Application from "../models/Application.js";
 
 const router = express.Router();
 
-router.get("/", protect, authorize(["recruiter"]), async (req, res) => {
+router.get("/", protect, authorize("recruiter"), async (req, res) => {
   try {
     const recruiterId = req.user._id;
 

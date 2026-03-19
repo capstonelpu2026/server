@@ -31,7 +31,7 @@ const safeAggregate = async (model, pipeline, fallbackName) => {
 router.get(
   "/analytics",
   protect,
-  authorize(["admin", "superadmin"]),
+  authorize("admin", "superadmin"),
   async (req, res) => {
     try {
       /* =============================

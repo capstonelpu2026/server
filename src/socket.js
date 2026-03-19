@@ -447,15 +447,24 @@ export default function socketServer(httpServer) {
     // 👁️ LIVE PROCTORING LOGIC
     // =====================================================
     
-    socket.on("proctor:join", ({ applicationId, role }) => {
+    socket.on("proctor:join", async ({ applicationId, role }) => {
       const roomId = `proctor_${applicationId}`;
       socket.join(roomId);
-      proctorRooms.set(socket.id, applicationId); // 🚀 Track proctoring room
+      proctorRooms.set(socket.id, applicationId);
       console.log(`👁️ [PROCTOR] ${socket.user.name} joined as ${role} for room: ${roomId}`);
       
+      const sockets = await io.in(roomId).fetchSockets();
+      const otherRoles = sockets
+        .filter(s => s.id !== socket.id)
+        .map(s => s.handshake.auth?.role || 'candidate'); // Fallback or use join metadata if available
+
       if (role === 'candidate') {
         socket.to(roomId).emit("proctor:candidate_online");
       } else {
+        // Find if candidate is already in room
+        const hasCandidate = sockets.some(s => s.id !== socket.id && s.rooms.has(roomId)); 
+        // Note: fetchSockets is more accurate
+        socket.emit("proctor:status_update", { candidateOnline: hasCandidate });
         socket.to(roomId).emit("proctor:recruiter_online");
       }
     });
