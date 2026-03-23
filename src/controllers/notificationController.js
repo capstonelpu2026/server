@@ -27,7 +27,7 @@ export const createNotification = async (
     // 🔔 Emit to user's socket room in real time
     const io = getIO();
     if (io) {
-      io.to(userId.toString()).emit("notification", notif);
+      io.to(userId.toString()).emit("notification:new", notif);
       console.log(`📢 Sent notification to ${userId}: ${title}`);
     }
 

@@ -88,26 +88,34 @@ router.post(
 
     const user = await User.findById(req.user._id);
 
-    // Delete old resume
+    // ✅ Robust cleanup: Delete old resume from Cloudinary (Try both raw and image)
     if (user.resumePublicId) {
-      await cloudinary.uploader.destroy(user.resumePublicId, {
-        resource_type: "raw",
-      });
+      try {
+        await cloudinary.uploader.destroy(user.resumePublicId, {
+          resource_type: "raw",
+        });
+        // Also try as image just in case it was uploaded differently before
+        await cloudinary.uploader.destroy(user.resumePublicId, {
+          resource_type: "image",
+        });
+      } catch (err) {
+        console.error("Cloudinary Cleanup Warning:", err.message);
+      }
     }
 
-    user.resumeUrl = req.file.path;       // ✅ /raw/upload/
+    user.resumeUrl = req.file.path;       // New path from Cloudinary
     user.resumePublicId = req.file.filename;
     await user.save();
 
     await notify({
       userId: user._id,
-      title: "Resume Uploaded",
-      message: "Your resume was uploaded successfully.",
+      title: "Resume Updated",
+      message: "Your profile resume has been successfully replaced.",
       type: "application",
     });
 
     res.json({
-      message: "Resume uploaded successfully ✅",
+      message: "Resume updated and old one replaced ✅",
       resumeUrl: user.resumeUrl,
     });
   })

@@ -35,6 +35,18 @@ router.patch("/mark-all/read", protect, async (req, res) => {
 /* =====================================================
    🗑️ Delete single notification
 ===================================================== */
+/* =====================================================
+   🗑️ Clear all notifications
+ ===================================================== */
+router.delete("/all/clear", protect, async (req, res) => {
+  try {
+    await Notification.deleteMany({ user: req.user._id });
+    res.json({ message: "All notifications cleared 🧹" });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to clear notifications" });
+  }
+});
+
 router.delete("/:id", protect, async (req, res) => {
   try {
     const notification = await Notification.findOneAndDelete({ _id: req.params.id, user: req.user._id });
