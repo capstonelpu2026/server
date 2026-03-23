@@ -28,9 +28,20 @@ const jobSchema = new mongoose.Schema(
       default: "pending",
     },
 
+    deadline: {
+      type: Date,
+      default: null, // If null, the job has no fixed deadline
+    },
+
     source: {
       type: String,
       default: "OneStop", // "OneStop" for internal, others like "LinkedIn", "Jobicy" for external
+    },
+
+    externalUrl: {
+      type: String,
+      trim: true,
+      default: null, // For external jobs
     },
 
     visibility: {
@@ -42,7 +53,8 @@ const jobSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// 🧠 Index for recruiter dashboard analytics
+// 🧠 Index for recruiter dashboard analytics and expiring jobs
 jobSchema.index({ postedBy: 1, createdAt: -1 });
+jobSchema.index({ deadline: 1 });
 
 export default mongoose.model("Job", jobSchema);

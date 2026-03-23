@@ -167,6 +167,7 @@ export const getEvents = async (req, res) => {
       .sort({ startDate: sortOrder })
       .skip((Number(page) - 1) * Number(limit))
       .limit(Number(limit))
+      .populate("createdBy", "name avatar role")
       .lean({ virtuals: true });
 
     res.json({
