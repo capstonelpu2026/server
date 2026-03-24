@@ -28,6 +28,10 @@ const jobSchema = new mongoose.Schema(
       default: "pending",
     },
 
+    startDate: {
+      type: Date,
+      default: Date.now,
+    },
     deadline: {
       type: Date,
       default: null, // If null, the job has no fixed deadline

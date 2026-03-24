@@ -4,7 +4,12 @@ import User from "../models/User.js";
 import Application from "../models/Application.js";
 import cloudinary from "../utils/cloudinary.js";
 import fs from "fs";
+import Groq from "groq-sdk";
+import { createRequire } from "module";
 import { getJobs, getInternships, findJobById, getJobsByRecruiter } from "../services/jobService.js";
+
+const require = createRequire(import.meta.url);
+const pdf = require("pdf-parse");
 
 /* ============================
    GET JOBS BY RECRUITER
@@ -66,10 +71,17 @@ export const applyToJob = asyncHandler(async (req, res) => {
   });
 
   if (existing) {
-    return res.status(400).json({
-      success: false,
-      message: "Already applied",
-    });
+    if (existing.status === 'withdrawn') {
+      // Candidate withdrew previously but wants to try again. 
+      // Clean up the archived withdrawn logic to allow a completely fresh application state.
+      await Application.findByIdAndDelete(existing._id);
+      job.applicants = job.applicants.filter(appId => appId.toString() !== existing._id.toString());
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: "Already applied",
+      });
+    }
   }
 
   let resumeUrl = req.user.resumeUrl;
@@ -79,24 +91,88 @@ export const applyToJob = asyncHandler(async (req, res) => {
     resumeUrl = req.file.path; 
   }
 
-  /* 🧠 AI MATCHING ALGORITHM */
+  /* 🧠 AI MATCHING ALGORITHM VIA GROQ & PDF PARSE */
+  let atsScore = 0;
+  let atsVerdict = "Fair";
   const jobSkills = (job.skills || []).map(s => s.toLowerCase().trim());
   const userSkills = (req.user.skills || []).map(s => s.toLowerCase().trim());
 
-  let atsScore = 0;
-  let atsVerdict = "Fair";
+  if (resumeUrl && process.env.GROQ_API_KEY) {
+    try {
+      console.log(`[ATS Tracker] Fetching resume buffer for job application from: ${resumeUrl}`);
+      // Fetch the PDF from cloudinary URL
+      const response = await fetch(resumeUrl);
+      if (response.ok) {
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        
+        // Extract content
+        const data = await pdf(buffer);
+        const text = data.text;
 
-  if (jobSkills.length > 0) {
-    const matchCount = jobSkills.filter(js => userSkills.includes(js)).length;
-    atsScore = Math.round((matchCount / jobSkills.length) * 100);
+        const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+        const prompt = `
+          Act as an expert ATS (Applicant Tracking System) and Senior Technical Recruiter.
+          Analyze this resume text against the target job skills, and output ONLY a JSON evaluation.
+          
+          JOB SKILLS REQUIRED: ${jobSkills.join(", ")}
+          
+          CANDIDATE RESUME:
+          ${text.substring(0, 15000)}
+
+          RETURN STRICT JSON ONLY (No markdown, no explanation, no backticks):
+          {
+            "score": number (0-100 representing exact alignment),
+            "verdict": string ("Excellent", "Good", "Needs Improvement", "Poor")
+          }
+        `;
+
+        const chatCompletion = await groq.chat.completions.create({
+          messages: [{ role: "user", content: prompt }],
+          model: "llama-3.3-70b-versatile",
+          temperature: 0.1,
+        });
+
+        const outputText = chatCompletion.choices[0]?.message?.content || "";
+        const jsonString = outputText.replace(/```json/g, "").replace(/```/g, "").trim();
+        const aiAnalysis = JSON.parse(jsonString);
+
+        atsScore = aiAnalysis.score || 0;
+        atsVerdict = aiAnalysis.verdict || "Fair";
+
+        // Map textual verdicts strictly to formatting thresholds
+        if (atsVerdict.includes("Excellent") || atsScore >= 80) atsVerdict = "Excellent";
+        else if (atsVerdict.includes("Good") || atsScore >= 50) atsVerdict = "Good";
+        else atsVerdict = "Fair";
+        
+      } else {
+         console.error("[ATS Tracker] Failed to fetch document from cloud:", response.statusText);
+      }
+    } catch (err) {
+      console.error("[ATS Tracker] Groq AI parsing failed, falling back to basic array comparison.", err.message);
+      // Fallback
+      if (jobSkills.length > 0) {
+        const matchCount = jobSkills.filter(js => userSkills.includes(js)).length;
+        atsScore = Math.round((matchCount / jobSkills.length) * 100);
+      } else {
+        atsScore = 50; 
+      }
+      if (atsScore >= 80) atsVerdict = "Excellent";
+      else if (atsScore >= 50) atsVerdict = "Good";
+      else atsVerdict = "Fair";
+    }
   } else {
-    // If job has no specific skills required, we default to a base score (e.g. 50) or just ignore
-    atsScore = 50; 
+    // Basic fallback logic
+    if (jobSkills.length > 0) {
+      const matchCount = jobSkills.filter(js => userSkills.includes(js)).length;
+      atsScore = Math.round((matchCount / jobSkills.length) * 100);
+    } else {
+      atsScore = 50; 
+    }
+    if (atsScore >= 80) atsVerdict = "Excellent";
+    else if (atsScore >= 50) atsVerdict = "Good";
+    else atsVerdict = "Fair";
   }
-
-  if (atsScore >= 80) atsVerdict = "Excellent";
-  else if (atsScore >= 50) atsVerdict = "Good";
-  else atsVerdict = "Fair";
 
   const application = await Application.create({
     job: id,

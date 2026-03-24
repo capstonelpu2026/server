@@ -329,12 +329,15 @@ export const listJobApplications = async (req, res) => {
         resumeUrl: app.resumeUrl || app.candidate?.resumeUrl,
         status: app.status,
         appliedAt: app.createdAt,
-        atsScore: app.atsScore || 0,
-        atsVerdict: app.atsVerdict || "N/A",
+        createdAt: app.createdAt,
+        updatedAt: app.updatedAt,
         assessment: app.assessment,
         interviewDetails: app.interviewDetails,
         offerDetails: app.offerDetails,
-        rejectionFeedback: app.rejectionFeedback
+        rejectionFeedback: app.rejectionFeedback,
+        atsScore: app.atsScore,
+        atsVerdict: app.atsVerdict,
+        hiredDetails: app.hiredDetails
       })),
     });
   } catch (err) {
@@ -350,7 +353,7 @@ export const updateApplicationStatus = async (req, res) => {
   try {
     const recruiterId = toObjectId(req.user._id);
     const applicationId = toObjectId(req.params.applicationId);
-    const { status, interviewDetails, offerDetails, rejectionFeedback } = req.body;
+    const { status, interviewDetails, offerDetails, rejectionFeedback, hiredDetails } = req.body;
  
     if (!status)
       return res.status(400).json({ message: "Missing new status" });
@@ -371,13 +374,16 @@ export const updateApplicationStatus = async (req, res) => {
     if (interviewDetails) updateFields.interviewDetails = interviewDetails;
     if (offerDetails) updateFields.offerDetails = offerDetails;
     if (rejectionFeedback) updateFields.rejectionFeedback = rejectionFeedback;
+    if (hiredDetails) updateFields.hiredDetails = hiredDetails;
  
     await Application.findByIdAndUpdate(applicationId, updateFields);
 
     const recruiter = await User.findById(recruiterId).select("orgName");
     const orgName = recruiter?.orgName || "OneStop Hub";
 
-    if (status === "hired") {
+    const isStatusChanged = application.status !== status;
+
+    if (status === "hired" && isStatusChanged) {
       const subject = `Congratulations! You're Hired at ${orgName}`;
       const htmlContent = candidateHiredTemplate(
         application.candidate.name,
@@ -391,7 +397,7 @@ export const updateApplicationStatus = async (req, res) => {
         `You have been hired for ${application.job.title} at ${orgName}.`,
         htmlContent
       );
-    } else if (status === "shortlisted") {
+    } else if (status === "shortlisted" && isStatusChanged) {
       const subject = `Your application for ${application.job.title} has been Shortlisted!`;
       const htmlContent = candidateShortlistedTemplate(
         application.candidate.name,
@@ -399,7 +405,7 @@ export const updateApplicationStatus = async (req, res) => {
         orgName
       );
       await sendEmail(application.candidate.email, subject, `Shortlist update for ${application.job.title}`, htmlContent);
-    } else if (status === "interviewing") {
+    } else if (status === "interviewing" && isStatusChanged) {
       const subject = `Interview Invitation: ${application.job.title} at ${orgName}`;
       const htmlContent = candidateInterviewTemplate(
         application.candidate.name,
@@ -408,7 +414,7 @@ export const updateApplicationStatus = async (req, res) => {
         interviewDetails
       );
       await sendEmail(application.candidate.email, subject, `Interview invitation for ${application.job.title}`, htmlContent);
-    } else if (status === "offered") {
+    } else if (status === "offered" && isStatusChanged) {
       const subject = `Job Offer: ${application.job.title} at ${orgName}`;
       const htmlContent = candidateOfferedTemplate(
         application.candidate.name,
@@ -417,7 +423,7 @@ export const updateApplicationStatus = async (req, res) => {
         offerDetails
       );
       await sendEmail(application.candidate.email, subject, `You have received a job offer from ${orgName}`, htmlContent);
-    } else if (status === "rejected") {
+    } else if (status === "rejected" && isStatusChanged) {
       const subject = `Application Update: ${application.job.title}`;
       const htmlContent = candidateRejectedTemplate(
         application.candidate.name,
@@ -554,12 +560,15 @@ export const listAllApplications = async (req, res) => {
         resumeUrl: app.resumeUrl || app.candidate?.resumeUrl,
         status: app.status,
         appliedAt: app.createdAt,
-        atsScore: app.atsScore || 0,
-        atsVerdict: app.atsVerdict || "N/A",
+        createdAt: app.createdAt,
+        updatedAt: app.updatedAt,
         assessment: app.assessment,
         interviewDetails: app.interviewDetails,
         offerDetails: app.offerDetails,
-        rejectionFeedback: app.rejectionFeedback
+        rejectionFeedback: app.rejectionFeedback,
+        atsScore: app.atsScore,
+        atsVerdict: app.atsVerdict,
+        hiredDetails: app.hiredDetails
       })),
     });
   } catch (err) {

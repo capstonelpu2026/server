@@ -149,7 +149,7 @@ router.patch(
   "/applications/:id/offer-response",
   protect,
   asyncHandler(async (req, res) => {
-    const { response } = req.body; // accepted / declined
+    const { response, signature } = req.body; // response: accepted / declined
     const application = await Application.findOne({
       _id: req.params.id,
       candidate: req.user._id
@@ -160,9 +160,13 @@ router.patch(
 
     application.offerDetails.status = response;
     
-    // If accepted, also mark as hired
+    // If accepted, save signature details and mark as hired
     if (response === "accepted") {
       application.status = "hired";
+      if (signature) {
+        application.offerDetails.candidateSignature = signature;
+        application.offerDetails.signedAt = new Date();
+      }
     }
 
     await application.save();

@@ -8,24 +8,36 @@ const ApplicationSchema = new mongoose.Schema({
   coverLetter: { type: String },
   status: {
     type: String,
-    enum: ["applied", "shortlisted", "assessment", "interviewing", "offered", "rejected", "hired"],
+    enum: ["applied", "shortlisted", "assessment", "interviewing", "offered", "rejected", "hired", "withdrawn"],
     default: "applied",
   },
   interviewDetails: {
     date: { type: Date },
     time: { type: String },
     link: { type: String },
-    location: { type: String }
+    location: { type: String },
+    score: { type: Number },
+    feedback: { type: String }
   },
   offerDetails: {
     salary: { type: String },
+    salaryType: { type: String, default: "LPA" }, // e.g. LPA, USD, etc.
     joinDate: { type: Date },
+    employmentType: { type: String, default: "Full-time" },
+    probation: { type: String },
     department: { type: String },
     reportingManager: { type: String },
+    band: { type: String }, // Corporate band level
     workMode: { type: String, enum: ["Remote", "Hybrid", "On-site"], default: "On-site" },
     location: { type: String },
+    noticePeriod: { type: String },
+    perks: [{ type: String }],
+    offerRefNo: { type: String },
+    issuedAt: { type: Date },
     additionalTerms: { type: String },
-    status: { type: String, enum: ["pending", "accepted", "declined"], default: "pending" }
+    status: { type: String, enum: ["pending", "accepted", "declined"], default: "pending" },
+    candidateSignature: { type: String }, // E-Signature from Candidate
+    signedAt: { type: Date } // Timestamp of E-Signature
   },
   rejectionFeedback: { type: String },
   assessment: {
@@ -64,6 +76,15 @@ const ApplicationSchema = new mongoose.Schema({
   },
   atsScore: { type: Number },
   atsVerdict: { type: String },
+  hiredDetails: {
+    employeeId: { type: String },
+    onboardingDate: { type: Date },
+    welcomeMessage: { type: String },
+    confirmedAt: { type: Date },
+    department: { type: String },
+    reportingManager: { type: String },
+    workLocation: { type: String }
+  },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

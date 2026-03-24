@@ -23,8 +23,9 @@ const router = express.Router();
 ===================================================== */
 router.post("/jobs", protect, authorize(["recruiter"]), async (req, res) => {
   try {
-    const { title, description, skills = [], location, salary, type } = req.body;
-
+    const { title, description, skills = [], location, salary, type, startDate, deadline } = req.body;
+    
+    // Auto-approve if needed, but for now let's stick with the existing logic of status: "pending"
     const job = await Job.create({
       title,
       description,
@@ -32,6 +33,8 @@ router.post("/jobs", protect, authorize(["recruiter"]), async (req, res) => {
       location,
       salary,
       type,
+      startDate,
+      deadline,
       postedBy: req.user._id,
       status: "pending",
     });
@@ -225,8 +228,8 @@ router.get("/jobs/:id/applications", protect, authorize(["recruiter"]), async (r
 ===================================================== */
 router.patch("/applications/:id/status", protect, authorize(["recruiter"]), async (req, res) => {
   try {
-    const { status, customMessage } = req.body;
-    const validStatuses = ["shortlisted", "rejected", "hired"];
+    const { status, customMessage, offerDetails, hiredDetails, interviewDetails, rejectionFeedback } = req.body;
+    const validStatuses = ["applied", "shortlisted", "assessment", "interviewing", "offered", "hired", "rejected"];
 
     if (!validStatuses.includes(status))
       return res.status(400).json({ message: "Invalid status" });
@@ -242,6 +245,12 @@ router.patch("/applications/:id/status", protect, authorize(["recruiter"]), asyn
       return res.status(403).json({ message: "Not authorized" });
 
     application.status = status;
+    
+    if (offerDetails) application.offerDetails = offerDetails;
+    if (hiredDetails) application.hiredDetails = hiredDetails;
+    if (interviewDetails) application.interviewDetails = interviewDetails;
+    if (rejectionFeedback) application.rejectionFeedback = rejectionFeedback;
+
     await application.save();
 
     // Email + Notification
