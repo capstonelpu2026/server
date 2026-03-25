@@ -404,7 +404,7 @@ router.get("/analytics", protect, authorize(["recruiter"]), async (req, res) => 
       },
     ]);
 
-    const counts = { applied: 0, shortlisted: 0, rejected: 0, hired: 0 };
+    const counts = { applied: 0, shortlisted: 0, assessment: 0, interviewing: 0, offered: 0, rejected: 0, hired: 0, withdrawn: 0 };
     countAgg.forEach((c) => (counts[c._id] = c.count));
 
     const last7 = new Date();
@@ -421,10 +421,11 @@ router.get("/analytics", protect, authorize(["recruiter"]), async (req, res) => 
       { $sort: { _id: 1 } },
     ]);
 
+    const totalApplications = Object.values(counts).reduce((sum, v) => sum + v, 0);
+
     res.json({
       totalJobs: jobs.length,
-      totalApplications:
-        counts.applied + counts.shortlisted + counts.rejected + counts.hired,
+      totalApplications,
       hiredCount: counts.hired,
       counts,
       trends: trendsAgg,
@@ -440,18 +441,21 @@ router.get("/analytics", protect, authorize(["recruiter"]), async (req, res) => 
 ===================================================== */
 router.get("/rpanel/overview", protect, authorize(["recruiter"]), async (req, res) => {
   try {
+    const allJobs = await Job.find({ postedBy: req.user._id }).select("_id");
+    const allJobIds = allJobs.map((j) => j._id);
+
     const recentJobs = await Job.find({ postedBy: req.user._id })
       .sort({ createdAt: -1 })
       .limit(5);
 
-    const totalJobs = await Job.countDocuments({ postedBy: req.user._id });
+    const totalJobs = allJobs.length;
 
     const totalApps = await Application.countDocuments({
-      job: { $in: recentJobs.map((j) => j._id) },
+      job: { $in: allJobIds },
     });
 
     const hired = await Application.countDocuments({
-      job: { $in: recentJobs.map((j) => j._id) },
+      job: { $in: allJobIds },
       status: "hired",
     });
 

@@ -34,6 +34,7 @@ const ApplicationSchema = new mongoose.Schema({
     perks: [{ type: String }],
     offerRefNo: { type: String },
     issuedAt: { type: Date },
+    expiryHours: { type: Number, default: 72 }, // Recruiter-defined window
     additionalTerms: { type: String },
     status: { type: String, enum: ["pending", "accepted", "declined"], default: "pending" },
     candidateSignature: { type: String }, // E-Signature from Candidate

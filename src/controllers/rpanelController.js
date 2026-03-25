@@ -8,6 +8,7 @@ import Notification from "../models/Notification.js";
 import Message from "../models/Message.js";
 import Application from "../models/Application.js";
 import { sendEmail } from "../utils/sendEmail.js";
+import { notifyUser } from "../utils/notifyUser.js";
 import {
   candidateHiredTemplate,
   candidateShortlistedTemplate,
@@ -51,6 +52,13 @@ export const getOverview = async (req, res) => {
       ? await Application.countDocuments({
           job: { $in: jobIds },
           status: "shortlisted",
+        })
+      : 0;
+
+    const totalInterviewing = jobIds.length
+      ? await Application.countDocuments({
+          job: { $in: jobIds },
+          status: { $in: ["interviewing", "offered"] },
         })
       : 0;
 
@@ -143,6 +151,7 @@ export const getOverview = async (req, res) => {
         totalJobs,
         totalApplications,
         totalShortlisted,
+        totalInterviewing,
         totalHires: totalHired,
       },
       recentJobs,
@@ -382,13 +391,15 @@ export const updateApplicationStatus = async (req, res) => {
     const orgName = recruiter?.orgName || "OneStop Hub";
 
     const isStatusChanged = application.status !== status;
+    const isNewHiredDetails = !!hiredDetails;
 
-    if (status === "hired" && isStatusChanged) {
+    if (status === "hired" && (isStatusChanged || isNewHiredDetails)) {
       const subject = `Congratulations! You're Hired at ${orgName}`;
       const htmlContent = candidateHiredTemplate(
         application.candidate.name,
         application.job.title,
-        orgName
+        orgName,
+        hiredDetails
       );
 
       await sendEmail(
@@ -440,6 +451,29 @@ export const updateApplicationStatus = async (req, res) => {
       targetUser: application.candidate._id,
       details: `Recruiter updated status of application for ${application.job.title} → ${status}`,
     });
+
+    // 🔔 In-app notification to candidate
+    if (isStatusChanged || isNewHiredDetails) {
+      const notifMap = {
+        shortlisted: { title: "📄 Application Shortlisted!", message: `Your application for "${application.job.title}" has been shortlisted.` },
+        interviewing: { title: "📅 Interview Scheduled!", message: `You have been invited for an interview for "${application.job.title}".` },
+        offered: { title: "💼 Job Offer Received!", message: `You have received a formal offer for "${application.job.title}". Please review and respond.` },
+        hired: { title: "🎉 Congratulations! You're Hired!", message: `You have been hired for "${application.job.title}". Welcome aboard!` },
+        rejected: { title: "Application Update", message: `Your application for "${application.job.title}" has been updated. Check your dashboard for details.` },
+      };
+      const notif = notifMap[status];
+      if (notif) {
+        notifyUser({
+          userId: application.candidate._id,
+          title: notif.title,
+          message: notif.message,
+          link: `/candidate/applications`,
+          type: "application",
+          persist: true,
+          realtime: true
+        }).catch(err => console.error("rpanel notification error:", err));
+      }
+    }
 
     res.json({ message: "Application updated", status });
   } catch (err) {

@@ -2,11 +2,13 @@ import asyncHandler from "express-async-handler";
 import Job from "../models/Job.js";
 import User from "../models/User.js";
 import Application from "../models/Application.js";
+import AuditLog from "../models/AuditLog.js";
 import cloudinary from "../utils/cloudinary.js";
 import fs from "fs";
 import Groq from "groq-sdk";
 import { createRequire } from "module";
 import { getJobs, getInternships, findJobById, getJobsByRecruiter } from "../services/jobService.js";
+import { notifyUser } from "../utils/notifyUser.js";
 
 const require = createRequire(import.meta.url);
 const pdf = require("pdf-parse");
@@ -187,12 +189,52 @@ export const applyToJob = asyncHandler(async (req, res) => {
   job.applicants.push(application._id);
   await job.save();
 
+  // ✅ Sync User.applications subdocument
+  const me = await User.findById(userId);
+  if (me && me.applications) {
+    me.applications.push({ job: id, status: "applied" });
+    await me.save();
+  }
+
   // ✨ GAMIFICATION: Reward activity
   // 10 XP base for applying, 10 XP bonus for high ATS score (>70)
   const bonus = atsScore >= 70 ? 10 : 0;
   await User.findByIdAndUpdate(userId, {
     $inc: { points: 10 + bonus }
   });
+
+  // 🧾 Audit Log
+  await AuditLog.create({
+    action: "JOB_APPLY",
+    performedBy: userId,
+    targetUser: userId,
+    details: `Candidate ${req.user.name} applied to job "${job.title}" (${job._id})`,
+  }).catch(() => {});
+
+  // 🔔 Notify Candidate (self)
+  notifyUser({
+    userId: userId,
+    email: req.user.email,
+    title: "Application Submitted ✅",
+    message: `You successfully applied to "${job.title}".`,
+    link: `/candidate/applications`,
+    type: "application",
+    emailSubject: "Application Submitted - OneStop Hub",
+  }).catch(err => console.error("Candidate notify error:", err));
+
+  // 🔔 Notify Recruiter
+  const recruiter = await User.findById(job.postedBy).select("_id email");
+  if (recruiter) {
+    notifyUser({
+      userId: recruiter._id,
+      email: recruiter.email,
+      title: "New Application Received 👤",
+      message: `${req.user.name} applied for your job "${job.title}".`,
+      link: `/rpanel/jobs/${job._id}/applications`,
+      type: "candidate",
+      emailSubject: `New Application - ${job.title}`,
+    }).catch(err => console.error("Recruiter notify error:", err));
+  }
 
   return res.status(201).json({
     success: true,
@@ -205,16 +247,16 @@ export const applyToJob = asyncHandler(async (req, res) => {
 ============================ */
 export const withdrawApplication = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const userId = req.user._id; // User is authenticated via 'protect'
+  const userId = req.user._id;
 
-  const job = await Job.findById(id);
+  const job = await Job.findById(id).select("title postedBy");
   if (!job) {
     res.status(404);
     throw new Error("Job not found");
   }
 
-  // Find and delete the application
-  const application = await Application.findOneAndDelete({
+  // Soft-delete: set status to 'withdrawn' (preserves audit trail)
+  const application = await Application.findOne({
     job: id,
     candidate: userId,
   });
@@ -224,11 +266,21 @@ export const withdrawApplication = asyncHandler(async (req, res) => {
     throw new Error("Application not found");
   }
 
-  // Remove the application ID from the job's applicants array
-  job.applicants = job.applicants.filter(
-    (appId) => appId.toString() !== application._id.toString()
-  );
-  await job.save();
+  application.status = "withdrawn";
+  await application.save();
+
+  // 🔔 Notify Recruiter about withdrawal
+  if (job.postedBy) {
+    notifyUser({
+      userId: job.postedBy,
+      title: "Application Withdrawn",
+      message: `${req.user.name || "A candidate"} has withdrawn their application for "${job.title}".`,
+      link: `/rpanel/jobs/${job._id}/applications`,
+      type: "candidate",
+      persist: true,
+      realtime: true
+    }).catch(err => console.error("Withdraw notify error:", err));
+  }
 
   res.json({
     success: true,

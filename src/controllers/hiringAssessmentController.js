@@ -12,7 +12,7 @@ export const sendHiringAssessment = asyncHandler(async (req, res) => {
   const { applicationId } = req.params;
   const { proctoringMode = "ai", duration = 3600 } = req.body;
   
-  const application = await Application.findById(applicationId).populate("job");
+  const application = await Application.findById(applicationId).populate("job").populate("candidate", "name email");
   if (!application) return res.status(404).json({ message: "Application not found" });
 
   // Generate questions + coding problems via AI
@@ -33,6 +33,24 @@ export const sendHiringAssessment = asyncHandler(async (req, res) => {
   application.status = 'assessment';
 
   await application.save();
+
+  // 🔔 Notify candidate via email + in-app notification
+  if (application.candidate) {
+    const durationMins = Math.round(duration / 60);
+    await notifyUser({
+      userId: application.candidate._id,
+      email: application.candidate.email,
+      title: "📋 Technical Assessment Assigned",
+      message: `You have a ${durationMins}-minute technical assessment for "${application.job.title}". Complete it from your Applications dashboard.`,
+      link: `/candidate/assessment/${applicationId}`,
+      type: "application",
+      persist: true,
+      realtime: true,
+      emailSubject: `Action Required: Technical Assessment for ${application.job.title} - OneStop Hub`,
+      emailEnabled: true
+    }).catch(err => console.error("Assessment notification error:", err));
+  }
+
   res.json({ 
     message: "Assessment generated and sent successfully", 
     questionsCount: questions.length,
@@ -91,7 +109,10 @@ export const submitHiringAssessment = asyncHandler(async (req, res) => {
   const { applicationId } = req.params;
   const { responses, codingResponses, violations, faceViolations, cameraEnabled, trustScore, aiConfidence, gazeDeviationHistory, faceSnapshotCount, aiEngineType } = req.body;
 
-  const application = await Application.findById(applicationId);
+  const application = await Application.findById(applicationId)
+    .populate("candidate", "name email")
+    .populate("job", "title postedBy");
+    
   if (!application) return res.status(404).json({ message: "Not found" });
 
   // Score MCQs
@@ -152,6 +173,21 @@ export const submitHiringAssessment = asyncHandler(async (req, res) => {
   }
 
   await application.save();
+
+  // 🔔 Notify Recruiter that assessment was completed
+  if (application.job?.postedBy) {
+    notifyUser({
+      userId: application.job.postedBy,
+      title: "Assessment Completed 📋",
+      message: `${application.candidate?.name || "A candidate"} scored ${finalScore}% on the technical assessment for "${application.job.title}".`,
+      link: `/rpanel/jobs/${application.job._id}/applications`,
+      type: "candidate",
+      persist: true,
+      realtime: true,
+      emailEnabled: true,
+      emailSubject: `Assessment Completed: ${application.candidate?.name} - ${application.job.title}`,
+    }).catch(err => console.error("Recruiter assessment notify error:", err));
+  }
 
   res.json({ 
     message: "Assessment submitted", 

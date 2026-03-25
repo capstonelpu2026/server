@@ -112,7 +112,7 @@ export const recruiterRejectedTemplate = (name, orgName) => `
 </html>
 `;
 
-export const candidateHiredTemplate = (candidateName, jobTitle, companyName) => `
+export const candidateHiredTemplate = (candidateName, jobTitle, companyName, hiredDetails = null) => `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -178,7 +178,20 @@ export const candidateHiredTemplate = (candidateName, jobTitle, companyName) => 
     
     <p>Your skills and experience impressed our team, and we are excited to have you join us. The HR team will reach out to you shortly with the formal offer letter and next steps.</p>
     
-    <a href="${process.env.CLIENT_URL || '#'}" class="button">View Application Status</a>
+    ${hiredDetails?.welcomeMessage ? `
+    <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 15px; border-radius: 8px; margin: 25px 0;">
+      <p style="font-size: 11px; font-weight: 800; color: #065f46; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.05em;">Welcome Message from the Team</p>
+      <div style="font-size: 15px; color: #047857; line-height: 1.6; font-style: italic;">"${hiredDetails.welcomeMessage}"</div>
+    </div>
+    ` : ''}
+
+    ${hiredDetails?.employeeId ? `
+    <div style="margin: 20px 0; font-size: 15px;">
+      <strong>Your Official Employee ID:</strong> <span style="background: #d1fae5; color: #065f46; padding: 4px 10px; border-radius: 6px; font-family: monospace;">${hiredDetails.employeeId}</span>
+    </div>
+    ` : ''}
+
+    <a href="${process.env.CLIENT_URL || '#'}" class="button">Access Corporate Onboarding</a>
     
     <p>Welcome to the team!</p>
 
