@@ -145,7 +145,7 @@ export const generateProblems = asyncHandler(async (req, res) => {
       2. difficulty: Easy, Medium, or Hard.
       3. description: A clear problem statement with examples.
       4. constraints: A list of constraints (e.g., time/space complexity).
-      5. starterCode: A boilerplate function in ${language} for the user to start with.
+      5. starterCode: ONLY provide the function signature/boilerplate in ${language}. DO NOT WRITE THE SOLUTION. The function body MUST ONLY contain a comment like "// Write your code here" and a default return statement. ANY logic or algorithm implementation is STRICTLY FORBIDDEN.
       6. testCases: 3-5 hidden test cases with "input" and "output" fields.
       
       Return ONLY a JSON array of objects. No markdown.
