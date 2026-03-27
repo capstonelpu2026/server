@@ -233,8 +233,11 @@ app.use((err, _req, res, _next) => {
 });
 
 /* =====================================================
-   ⚡ SERVER + SOCKET
+   ⚡ SERVER + SOCKET + CRON
 ===================================================== */
+
+import { initCronJobs } from "./cron/aiContestCron.js";
+initCronJobs();
 
 const server = http.createServer(app);
 initSocket(server);

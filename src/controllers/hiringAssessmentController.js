@@ -220,11 +220,16 @@ export const reportAssessmentViolation = asyncHandler(async (req, res) => {
 export const resetHiringAssessment = asyncHandler(async (req, res) => {
   const { applicationId } = req.params;
 
-  const application = await Application.findById(applicationId).populate("candidate", "name email").populate("job", "title");
+  const application = await Application.findById(applicationId).populate("candidate", "name email").populate("job", "title description");
   if (!application) return res.status(404).json({ message: "Application not found" });
 
-  // Reset assessment state
+  // Generate completely new questions + coding problems via AI so the retake is unique!
+  const { questions, codingProblems } = await generateHiringTest(application.job.title, application.job.description);
+
+  // Reset assessment state and apply new questions
   application.assessment.status = "sent"; 
+  application.assessment.questions = questions;
+  application.assessment.codingProblems = codingProblems || [];
   application.assessment.score = undefined;
   application.assessment.mcqScore = undefined;
   application.assessment.codingScore = undefined;
@@ -240,12 +245,12 @@ export const resetHiringAssessment = asyncHandler(async (req, res) => {
   await notifyUser({
     userId: application.candidate._id,
     email: application.candidate.email,
-    title: "Assessment Reset: You can retake the test!",
-    message: `The recruiter for "${application.job.title}" has reset your technical assessment. You can now re-attempt the test from your dashboard. Good luck!`,
+    title: "Assessment Reset: You have a new test!",
+    message: `The recruiter for "${application.job.title}" has reset your technical assessment. You have been assigned a completely fresh set of questions. You can now re-attempt the test from your dashboard. Good luck!`,
     type: "application",
     emailEnabled: true,
     emailSubject: "Action Required: Assessment Re-conducted - OneStop Hub"
   });
 
-  res.json({ message: "Assessment reset successfully! The candidate has been notified. ✅" });
+  res.json({ message: "Assessment reset successfully! A completely new AI test has been generated for the candidate. ✅" });
 });
