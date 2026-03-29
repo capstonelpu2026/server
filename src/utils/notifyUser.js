@@ -73,7 +73,7 @@ export const notifyUser = async ({
           <p style="font-size:0.75rem;color:#999;">Manage your alerts in OneStop Hub Profile Settings.</p>
         </div>
       `;
-      await sendEmail(userEmail, emailSubject, html, true);
+      await sendEmail(userEmail, emailSubject, "Please view this email in an HTML compatible client.", html);
     }
 
     const canSendRealtime = broadcast || (targetUser?.notificationSettings?.inApp?.[type] !== false);

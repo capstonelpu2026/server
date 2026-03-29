@@ -9,12 +9,26 @@ import { notifyUser } from "../utils/notifyUser.js";
 // 📌 Get All Approved Mentors
 export const getMentors = async (req, res) => {
   try {
-    const { expertise, search } = req.query;
+    const { expertise, search, experience, minPrice, maxPrice } = req.query;
     const query = { role: "mentor", mentorApproved: true };
 
     if (expertise) {
       query["mentorProfile.expertise"] = { $regex: expertise, $options: "i" };
     }
+    
+    if (experience) {
+      const expNum = parseInt(experience);
+      if (!isNaN(expNum)) {
+        query["mentorProfile.experience"] = { $gte: expNum };
+      }
+    }
+
+    if (minPrice || maxPrice) {
+      query["mentorProfile.services.price"] = {};
+      if (minPrice) query["mentorProfile.services.price"].$gte = parseInt(minPrice);
+      if (maxPrice) query["mentorProfile.services.price"].$lte = parseInt(maxPrice);
+    }
+
     if (search) {
       query.$text = { $search: search }; 
     }
@@ -29,9 +43,11 @@ export const getMentors = async (req, res) => {
           { $match: { mentor: m._id, status: "completed", rating: { $gt: 0 } } },
           { $group: { _id: "$mentor", avgRating: { $avg: "$rating" }, totalReviews: { $sum: 1 } } }
        ]);
+       
+       // Return numeric values for consistency
        return { 
           ...m, 
-          averageRating: stats[0]?.avgRating?.toFixed(1) || "New", 
+          averageRating: stats[0] ? parseFloat(stats[0].avgRating.toFixed(1)) : 0, 
           totalReviews: stats[0]?.totalReviews || 0 
        };
     }));
@@ -138,6 +154,20 @@ export const bookSession = async (req, res) => {
 
     const mentor = await User.findById(mentorId);
     if (!mentor || mentor.role !== "mentor") return res.status(404).json({ message: "Mentor not found" });
+
+    // 🛡️ Verify Slot is actually in Mentor's Availability
+    const dayName = new Date(scheduledDate).toLocaleDateString('en-US', { weekday: 'long' });
+    const dayAvailability = mentor.mentorProfile?.availability?.find(d => d.day === dayName);
+    
+    // Some mentors might use strings or objects for slots, handle both
+    const isAvailable = dayAvailability?.slots?.some(slot => {
+       const startTime = typeof slot === 'object' ? slot.startTime : slot;
+       return startTime === scheduledTime;
+    });
+
+    if (!isAvailable) {
+       return res.status(400).json({ message: `The mentor is not available on ${dayName}s at ${scheduledTime}. Please refresh and pick an active slot.` });
+    }
 
     // 🛡️ Prevent Double Booking (Same Candidate, Same Slot)
     const existingMyRequest = await Session.findOne({
