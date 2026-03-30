@@ -5,6 +5,7 @@ import multer from "multer";
 import Groq from "groq-sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { sendEmail } from "../utils/sendEmail.js";
+import { getContests } from "../services/contestService.js";
 
 /* -------------------------------------------------------
    📦 Multer — banner upload
@@ -230,7 +231,7 @@ export const listContests = async (req, res) => {
     if (status === "completed") query.endAt = { $lt: now };
 
     const total = await CodingContest.countDocuments(query);
-    const contests = await CodingContest
+    const internalContests = await CodingContest
       .find(query, { problems: 0, participants: 0 }) // lean — no heavy fields
       .sort({ startAt: 1 })
       .skip((page - 1) * limit)
@@ -238,7 +239,45 @@ export const listContests = async (req, res) => {
       .populate("createdBy", "name")
       .lean({ virtuals: true });
 
-    res.json({ contests, total, page: Number(page), pages: Math.ceil(total / limit) || 1 });
+    // 🌍 Fetch Global Contests (LeetCode, Codeforces, etc.)
+    let aggregated = [...internalContests];
+    try {
+      const globalContests = await getContests();
+      const mappedGlobals = globalContests.map(c => ({
+        _id: c.id || `ext_${Math.random().toString(36).substr(2, 9)}`,
+        title: c.name,
+        company: c.platform,
+        startAt: new Date(c.startTime),
+        endAt: new Date(c.endTime),
+        url: c.url,
+        difficulty: "Mixed",
+        tags: [c.platform, "Global"],
+        isExternal: true, // UI indicator
+        isPublished: true,
+        problems: []
+      }));
+
+      // Filter globals by status if requested
+      const filteredGlobals = mappedGlobals.filter(c => {
+        const cStart = new Date(c.startAt);
+        const cEnd = new Date(c.endAt);
+        if (status === "upcoming") return cStart > now;
+        if (status === "live")     return cStart <= now && cEnd >= now;
+        if (status === "completed") return cEnd < now;
+        return true;
+      });
+
+      aggregated = [...aggregated, ...filteredGlobals];
+    } catch (gErr) {
+      console.warn("Global contest fetch failed:", gErr.message);
+    }
+
+    res.json({ 
+      contests: aggregated, 
+      total: total + (aggregated.length - internalContests.length), 
+      page: Number(page), 
+      pages: Math.ceil(total / limit) || 1 
+    });
   } catch (err) {
     console.error("listContests error:", err);
     res.status(500).json({ message: "Error fetching contests" });
@@ -294,7 +333,7 @@ export const createContest = async (req, res) => {
     const contest = new CodingContest({
       ...body,
       createdBy: req.user._id,
-      durationHours: 24,        // always 24h
+      durationHours: Number(body.durationHours) || 24,
     });
 
     // Banner upload
@@ -852,5 +891,39 @@ export const disqualifyParticipant = async (req, res) => {
   } catch (err) {
     console.error("disqualifyParticipant error:", err);
     res.status(500).json({ message: "Failed to disqualify participant" });
+  }
+};
+
+/* -------------------------------------------------------
+   🔓 PUT /api/code-arena/contests/admin/:id/participants/:userId/unlock
+   Admin: Unlock disqualified session
+------------------------------------------------------- */
+export const unlockParticipantSession = async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+    const contest = await CodingContest.findById(id);
+    if (!contest) return res.status(404).json({ message: "Contest not found" });
+
+    const pIdx = contest.participants.findIndex(p => String(p.userId) === String(userId));
+    if (pIdx === -1) return res.status(404).json({ message: "Participant not found" });
+
+    // Reset violations and disqualification
+    contest.participants[pIdx].isDisqualified = false;
+    contest.participants[pIdx].violationCount = 0;
+    // We keep logs for auditing but the user is no longer blocked.
+
+    await contest.save();
+    
+    // Log the override
+    await AuditLog.create({
+      action: "OVERRIDE_DISQUALIFICATION",
+      performedBy: req.user._id,
+      details: `Admin unlocked session for user ${userId} in contest ${contest.title}`,
+    });
+
+    res.json({ message: "Session unlocked successfully!", participant: contest.participants[pIdx] });
+  } catch (err) {
+    console.error("unlockParticipantSession error:", err);
+    res.status(500).json({ message: "Error unlocking session" });
   }
 };

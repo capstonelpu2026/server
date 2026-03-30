@@ -21,8 +21,8 @@ export const getJobs = async (type) => {
     const formattedDbJobs = dbJobs.map(job => ({
         ...job.toObject(),
         id: job._id, // Ensure frontend compatibility
-        company: job.recruiter?.orgName || "Top Company", 
-        logo: job.recruiter?.avatar || "", 
+        company: job.postedBy?.orgName || "Top Company", 
+        logo: job.postedBy?.avatar || "", 
         isNew: (new Date() - new Date(job.createdAt)) < (7 * 24 * 60 * 60 * 1000) // New if < 7 days
     }));
 
@@ -38,8 +38,8 @@ export const getInternships = async () => {
     return internships.map(job => ({
         ...job.toObject(),
         id: job._id,
-        company: job.recruiter?.orgName || "Top Company",
-        logo: job.recruiter?.avatar || "",
+        company: job.postedBy?.orgName || "Top Company",
+        logo: job.postedBy?.avatar || "",
         isNew: (new Date() - new Date(job.createdAt)) < (7 * 24 * 60 * 60 * 1000)
     }));
 }
@@ -53,8 +53,8 @@ export const findJobById = async (id) => {
         return {
             ...job.toObject(),
             id: job._id,
-            company: job.recruiter?.orgName || "Top Company",
-            logo: job.recruiter?.avatar || "",
+            company: job.postedBy?.orgName || "Top Company",
+            logo: job.postedBy?.avatar || "",
             recruiter: job.postedBy // Ensure recruiter details are passed
         };
     } catch (error) {
@@ -71,8 +71,8 @@ export const getJobsByRecruiter = async (recruiterId) => {
         return jobs.map(job => ({
             ...job.toObject(),
             id: job._id,
-            company: job.recruiter?.orgName || "Top Company",
-            logo: job.recruiter?.avatar || "",
+            company: job.postedBy?.orgName || "Top Company",
+            logo: job.postedBy?.avatar || "",
             isNew: (new Date() - new Date(job.createdAt)) < (7 * 24 * 60 * 60 * 1000)
         }));
     } catch (error) {

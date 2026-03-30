@@ -144,6 +144,74 @@ router.post("/upload-doc", protect, uploadCloud.single("file"), async (req, res)
   }
 });
 
+// ✅ Daily Attendance Check-in
+router.post("/me/check-in", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const lastVisit = user.lastVisitDate ? new Date(user.lastVisitDate.getFullYear(), user.lastVisitDate.getMonth(), user.lastVisitDate.getDate()) : null;
+
+    if (lastVisit && lastVisit.getTime() === today.getTime()) {
+      return res.json({ success: true, message: "Already checked in today!", user });
+    }
+
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    if (lastVisit && lastVisit.getTime() === yesterday.getTime()) {
+      user.attendanceStreak += 1;
+    } else {
+      user.attendanceStreak = 1;
+    }
+
+    if (user.attendanceStreak > user.maxAttendanceStreak) {
+      user.maxAttendanceStreak = user.attendanceStreak;
+    }
+
+    // Reward Logic: 10 XP per day of streak, capped at 100
+    const reward = Math.min(user.attendanceStreak * 10, 100);
+    user.points += reward;
+    user.attendancePoints += reward;
+    user.lastVisitDate = now;
+
+    await user.save();
+    
+    await AuditLog.create({
+      action: "DAILY_CHECKIN",
+      performedBy: user._id,
+      details: `Checked in! Streak: ${user.attendanceStreak} (Reward: +${reward} XP)`
+    });
+
+    res.json({ success: true, message: `Check-in successful! +${reward} XP`, user });
+  } catch (err) {
+    res.status(500).json({ message: "Check-in failed" });
+  }
+});
+router.post("/me/reminders", protect, async (req, res) => {
+  try {
+    const { contestId, platform, title, startTime, action } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (action === "add") {
+      const exists = user.contestReminders.find(r => r.contestId === contestId);
+      if (!exists) {
+        user.contestReminders.push({ contestId, platform, title, startTime });
+      }
+    } else {
+      user.contestReminders = user.contestReminders.filter(r => r.contestId !== contestId);
+    }
+
+    await user.save();
+    res.json({ success: true, reminders: user.contestReminders });
+  } catch (err) {
+    res.status(500).json({ message: "Error updating reminders" });
+  }
+});
+
 /* =====================================================
    👑 USER MANAGEMENT (Admin + SuperAdmin)
 ===================================================== */
@@ -163,7 +231,8 @@ router.get("/directory", protect, async (req, res) => {
     
     // Return limited fields for security
     const users = await User.find(query)
-      .select("name avatar role email")
+      .select("name avatar role email points attendanceStreak")
+      .sort({ points: -1 })
       .limit(50);
       
     res.json(users);
@@ -188,7 +257,7 @@ router.get("/public/:id", protect, async (req, res) => {
 router.get("/leaderboard", protect, async (req, res) => {
   try {
     const users = await User.find({})
-      .select("name avatar points role")
+      .select("name avatar points role attendanceStreak")
       .sort({ points: -1 })
       .limit(50);
     res.json(users);
@@ -278,6 +347,31 @@ router.put("/:id/role", protect, authorize(["superadmin"]), async (req, res) => 
   } catch (err) {
     console.error("Change role error:", err);
     res.status(500).json({ message: "Error updating role" });
+  }
+});
+
+// ✅ Manually Verify User (SuperAdmin/Admin)
+router.put("/:id/verify", protect, authorize(["admin", "superadmin"]), async (req, res) => {
+  try {
+    const { status, isElite } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (status) user.verificationStatus = status;
+    if (isElite !== undefined) user.isElite = isElite;
+    
+    await user.save();
+
+    await AuditLog.create({
+      action: "VERIFY_USER",
+      performedBy: req.user._id,
+      targetUser: user._id,
+      details: `Verification: ${status}, Elite: ${isElite}`,
+    });
+
+    res.json({ success: true, message: "User verification updated ✅", user });
+  } catch (err) {
+    res.status(500).json({ message: "Error verifying user" });
   }
 });
 

@@ -251,6 +251,32 @@ const userSchema = new mongoose.Schema(
         updatedAt: { type: Date, default: Date.now },
       },
     ],
+    contestReminders: [
+      {
+        contestId: String,
+        platform: String,
+        title: String,
+        startTime: Date,
+        notified: { type: Boolean, default: false }
+      }
+    ],
+    savedChallenges: [{ type: String }],
+    dailyStreak: { type: Number, default: 0 },
+    maxStreak: { type: Number, default: 0 },
+    lastSolveDate: { type: Date },
+    dailySolveCount: { type: Number, default: 0 },
+    attendanceStreak: { type: Number, default: 0 },
+    maxAttendanceStreak: { type: Number, default: 0 },
+    lastVisitDate: { type: Date },
+    attendancePoints: { type: Number, default: 0 },
+    isElite: { type: Boolean, default: false },
+    verificationStatus: { 
+      type: String, 
+      enum: ["none", "pending", "verified", "elite"], 
+      default: "none" 
+    },
+    averageMentorRating: { type: Number, default: 0 },
+    totalReviews: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

@@ -237,7 +237,13 @@ app.use((err, _req, res, _next) => {
 ===================================================== */
 
 import { initCronJobs } from "./cron/aiContestCron.js";
+import { initContestReminderCron } from "./cron/contestReminderCron.js";
+import { initDailyChallengeCron } from "./cron/dailyChallengeCron.js";
+import { initVerificationCron } from "./cron/verificationCron.js";
 initCronJobs();
+initContestReminderCron();
+initDailyChallengeCron();
+initVerificationCron();
 
 const server = http.createServer(app);
 initSocket(server);

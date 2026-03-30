@@ -17,6 +17,7 @@ import {
   logViolation,
   sendWarningEmail,
   disqualifyParticipant,
+  unlockParticipantSession,
 } from "../controllers/codingContestController.js";
 
 const router = express.Router();
@@ -68,6 +69,7 @@ router.get(
 router.post("/contests/admin/:id/certificates", protect, authorize("admin", "superadmin"), generateAndSendCertificates);
 router.post("/contests/admin/:id/warning", protect, authorize("admin", "superadmin"), sendWarningEmail);
 router.post("/contests/admin/:id/disqualify", protect, authorize("admin", "superadmin"), disqualifyParticipant);
+router.put("/contests/admin/:id/participants/:userId/unlock", protect, authorize("admin", "superadmin"), unlockParticipantSession);
 
 // Participant routes
 router.post("/contests/:id/violation", protect, logViolation);

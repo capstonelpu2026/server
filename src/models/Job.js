@@ -7,7 +7,9 @@ const jobSchema = new mongoose.Schema(
     skills: [{ type: String, trim: true }],
     location: { type: String, required: true, trim: true },
     salary: { type: String, default: "Not Disclosed" },
-    type: { type: String, enum: ["Full-time", "Part-time", "Internship"], default: "Full-time" },
+    type: { type: String, enum: ["Full-time", "Part-time", "Internship", "Contract"], default: "Full-time" },
+    workMode: { type: String, enum: ["Remote", "On-site", "Hybrid"], default: "Remote" },
+    experience: { type: String, default: "0-2 Years" },
 
     postedBy: {
       type: mongoose.Schema.Types.ObjectId,
