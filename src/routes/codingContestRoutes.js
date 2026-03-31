@@ -18,6 +18,7 @@ import {
   sendWarningEmail,
   disqualifyParticipant,
   unlockParticipantSession,
+  startSession,
 } from "../controllers/codingContestController.js";
 
 const router = express.Router();
@@ -96,5 +97,7 @@ router.delete(
   authorize("admin", "superadmin"),
   deleteContest
 );
+
+router.post("/contests/:id/start-session", protect, startSession);
 
 export default router;

@@ -75,6 +75,7 @@ export const getOverview = async (req, res) => {
       title: job.title,
       status: job.status,
       location: job.location || "Not specified",
+      deadline: job.deadline,
       createdAt: job.createdAt,
     }));
 
@@ -145,6 +146,38 @@ export const getOverview = async (req, res) => {
       score: Math.floor(Math.random() * 10) + 90, 
       role: c.skills?.[0] || 'Candidate'
     }));
+    
+    // 🔥 Critical Alerts: Expiring Jobs (within 24 hours)
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const expiringJobs = jobs.filter(j => j.deadline && new Date(j.deadline) > new Date() && new Date(j.deadline) <= tomorrow);
+    
+    // Auto-create notifications for expiring jobs
+    if (expiringJobs.length > 0) {
+      for (const ej of expiringJobs) {
+        const notifKey = `deadline_24h_${ej._id}_${new Date().toISOString().slice(0, 10)}`;
+        const existingNotif = await Notification.findOne({ aggregationKey: notifKey });
+        
+        if (!existingNotif) {
+          await notifyUser({
+            userId: recruiterId,
+            title: `⏰ Deadline Approaching: ${ej.title}`,
+            message: `The application deadline for "${ej.title}" is in less than 24 hours. Review your remaining applicants now!`,
+            link: `/rpanel/jobs/${ej._id}/applications`,
+            type: "job",
+            persist: true,
+            realtime: true,
+            aggregationKey: notifKey
+          }).catch(e => console.error("Expiring job notif error:", e));
+        }
+      }
+    }
+
+    const criticalAlerts = expiringJobs.map(j => ({
+      _id: j._id,
+      title: j.title,
+      deadline: j.deadline,
+      daysLeft: Math.max(0, Math.ceil((new Date(j.deadline) - new Date()) / (1000 * 60 * 60 * 24)))
+    }));
 
     return res.json({
       counts: {
@@ -157,7 +190,8 @@ export const getOverview = async (req, res) => {
       recentJobs,
       recentEvents,
       sparkline,
-      aiSuggestions
+      aiSuggestions,
+      criticalAlerts
     });
   } catch (err) {
     console.error("rpanel.getOverview error:", err);
@@ -177,7 +211,7 @@ export const updateJob = async (req, res) => {
     const job = await Job.findOne({ _id: jobId, postedBy: recruiterId });
     if (!job) return res.status(404).json({ message: "Job not found" });
 
-    const allowedFields = ["title", "description", "skills", "location", "salary", "type", "status"];
+    const allowedFields = ["title", "description", "skills", "location", "salary", "type", "status", "startDate", "deadline"];
     allowedFields.forEach((field) => {
       if (req.body[field] !== undefined) job[field] = req.body[field];
     });
@@ -231,7 +265,7 @@ export const deleteJob = async (req, res) => {
 export const createJob = async (req, res) => {
   try {
     const recruiterId = toObjectId(req.user._id);
-    const { title, description, skills = [], location, salary, type } = req.body;
+    const { title, description, skills = [], location, salary, type, startDate, deadline } = req.body;
 
     if (!title || !description) {
       return res.status(400).json({ message: "Title and Description are required" });
@@ -244,6 +278,8 @@ export const createJob = async (req, res) => {
       location,
       salary,
       type,
+      startDate,
+      deadline,
       postedBy: recruiterId,
       status: "pending", // Requires admin approval before going live
     });

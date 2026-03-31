@@ -5,7 +5,6 @@ import multer from "multer";
 import Groq from "groq-sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { sendEmail } from "../utils/sendEmail.js";
-import { getContests } from "../services/contestService.js";
 
 /* -------------------------------------------------------
    📦 Multer — banner upload
@@ -239,42 +238,9 @@ export const listContests = async (req, res) => {
       .populate("createdBy", "name")
       .lean({ virtuals: true });
 
-    // 🌍 Fetch Global Contests (LeetCode, Codeforces, etc.)
-    let aggregated = [...internalContests];
-    try {
-      const globalContests = await getContests();
-      const mappedGlobals = globalContests.map(c => ({
-        _id: c.id || `ext_${Math.random().toString(36).substr(2, 9)}`,
-        title: c.name,
-        company: c.platform,
-        startAt: new Date(c.startTime),
-        endAt: new Date(c.endTime),
-        url: c.url,
-        difficulty: "Mixed",
-        tags: [c.platform, "Global"],
-        isExternal: true, // UI indicator
-        isPublished: true,
-        problems: []
-      }));
-
-      // Filter globals by status if requested
-      const filteredGlobals = mappedGlobals.filter(c => {
-        const cStart = new Date(c.startAt);
-        const cEnd = new Date(c.endAt);
-        if (status === "upcoming") return cStart > now;
-        if (status === "live")     return cStart <= now && cEnd >= now;
-        if (status === "completed") return cEnd < now;
-        return true;
-      });
-
-      aggregated = [...aggregated, ...filteredGlobals];
-    } catch (gErr) {
-      console.warn("Global contest fetch failed:", gErr.message);
-    }
-
     res.json({ 
-      contests: aggregated, 
-      total: total + (aggregated.length - internalContests.length), 
+      contests: internalContests, 
+      total, 
       page: Number(page), 
       pages: Math.ceil(total / limit) || 1 
     });
@@ -334,6 +300,8 @@ export const createContest = async (req, res) => {
       ...body,
       createdBy: req.user._id,
       durationHours: Number(body.durationHours) || 24,
+      isSessionTimed: body.isSessionTimed === "true" || body.isSessionTimed === true,
+      sessionDurationMinutes: Number(body.sessionDurationMinutes) || 60,
     });
 
     // Banner upload
@@ -382,7 +350,8 @@ export const updateContest = async (req, res) => {
 
     const updatable = ["title", "subtitle", "description", "company", "difficulty",
       "tags", "startAt", "durationHours", "registrationDeadline", "status",
-      "problems", "prizes", "rules", "maxParticipants", "isPublished", "languages", "mode"];
+      "problems", "prizes", "rules", "maxParticipants", "isPublished", "languages", "mode",
+      "isSessionTimed", "sessionDurationMinutes"];
 
     updatable.forEach(k => {
       if (body[k] !== undefined) contest[k] = body[k];
@@ -925,5 +894,35 @@ export const unlockParticipantSession = async (req, res) => {
   } catch (err) {
     console.error("unlockParticipantSession error:", err);
     res.status(500).json({ message: "Error unlocking session" });
+  }
+};
+
+/* -------------------------------------------------------
+   ⏱️ POST /api/code-arena/contests/:id/start-session
+   Initialize the individual session timer
+------------------------------------------------------- */
+export const startSession = async (req, res) => {
+  try {
+    const contest = await CodingContest.findById(req.params.id);
+    if (!contest) return res.status(404).json({ message: "Contest not found" });
+
+    const participantIdx = contest.participants.findIndex(p => String(p.userId) === String(req.user._id));
+    if (participantIdx === -1) {
+      return res.status(403).json({ message: "Please register for the contest first" });
+    }
+
+    // Only start if not already started
+    if (!contest.participants[participantIdx].sessionStartedAt) {
+      contest.participants[participantIdx].sessionStartedAt = new Date();
+      await contest.save();
+    }
+
+    res.json({ 
+      message: "Session started", 
+      sessionStartedAt: contest.participants[participantIdx].sessionStartedAt 
+    });
+  } catch (err) {
+    console.error("startSession error:", err);
+    res.status(500).json({ message: "Error starting session" });
   }
 };

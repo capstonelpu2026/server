@@ -59,6 +59,7 @@ const participantSchema = new mongoose.Schema({
     evaluation:  { type: mongoose.Schema.Types.Mixed },  // AI evaluation JSON
   }],
   lastSubmissionAt: { type: Date, default: null },
+  sessionStartedAt: { type: Date, default: null }, // Track when student actually enters the arena
 }, { _id: false });
 
 /* -------------------------------------------------------
@@ -113,6 +114,10 @@ const codingContestSchema = new mongoose.Schema({
   isPublished: { type: Boolean, default: false },
   languages:   [{ type: String }],  // allowed programming languages
   mode:        { type: String, enum: ["manual", "ai"], default: "manual" },
+
+  // Session Timing
+  isSessionTimed:        { type: Boolean, default: false },
+  sessionDurationMinutes: { type: Number, default: 60 },
 
 }, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } });
 
