@@ -25,15 +25,7 @@ const getGeminiClient = () => {
  * @access Public
  */
 export const generateQuestions = asyncHandler(async (req, res) => {
-  const { 
-    role = "Software Engineer", 
-    topic, 
-    difficulty = "Standard", 
-    company = "Tech Industry", 
-    experience = "Intermediate", 
-    personality = "Professional",
-    questionCount = 5
-  } = req.body;
+  const { role = "Software Engineer", topic, difficulty = "Standard", company = "Tech Industry", experience = "Intermediate", personality = "Professional" } = req.body;
 
   if (!process.env.GROQ_API_KEY) {
     console.warn("⚠️ GROQ_API_KEY missing. Using fallback interview questions.");
@@ -52,26 +44,20 @@ export const generateQuestions = asyncHandler(async (req, res) => {
   try {
     const groq = getGroqClient();
     
-    // Calculate split for question types
-    const textCount = Math.max(1, Math.floor(questionCount * 0.4));
-    const mcqCount = questionCount - textCount;
-
-    // Updated prompt with dynamic question count
+    // Updated prompt for company-specific interview
     const prompt = `
       Act as a Senior Technical Recruiter at ${company} with a ${personality} personality. 
       You are conducting a mock interview for a "${role}" position (Experience Level: ${experience}). 
       
-      Generate a realistic interview set of EXACTLY ${questionCount} questions that ${company} is likely to ask for this role.
+      Generate a realistic interview set of 8 questions that ${company} is likely to ask for this role.
       Topic Focus: ${topic || "General"}
       Difficulty: ${difficulty}
       Interviewer Tone: ${personality} (Adjust the language of questions to match this tone)
       
       Structure:
-      - ${textCount} Deep Behavioral/Technical Questions (type: "text") tailored to ${company}'s culture and your ${personality} persona.
-      - ${mcqCount} Multiple Choice Questions (type: "mcq") with 4 options and the correct answer, testing technical fundamentals at ${difficulty} level.
-      
-      CRITICAL: You must provide EXACTLY ${questionCount} questions in total.
-      
+      - 3 Deep Behavioral/Technical Questions (type: "text") tailored to ${company}'s culture and your ${personality} persona.
+      - 5 Multiple Choice Questions (type: "mcq") with 4 options and the correct answer, testing technical fundamentals at ${difficulty} level.
+
       Return ONLY a JSON array of objects. No markdown.
       Format:
       [
@@ -530,71 +516,6 @@ export const generateJobDescription = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc Auto-generate Event Description for Recruiters
- * @route POST /api/ai/event-description
- * @access Public
- */
-export const generateEventDescription = asyncHandler(async (req, res) => {
-  const { title, category, organizer, location, query } = req.body;
-  
-  if (!title) {
-    res.status(400);
-    throw new Error("Event Title is required");
-  }
-
-  try {
-    const groq = getGroqClient();
-    const prompt = `
-      You are a professional event coordinator. Write a polished, engaging event description for this event.
-      
-      ${query ? `SPECIAL QUERY/FOCUS: "${query}"` : ""}
-
-      Event: ${title}
-      Category: ${category || "General"}
-      Organizer: ${organizer || "Not specified"}
-      Location: ${location || "Online"}
-
-      FORMAT RULES:
-      - Use PLAIN TEXT only. No markdown. No bolding. No hashtags.
-      - Use headers like:
-          About the Event:
-          What to Expect:
-          Key Highlights:
-          Who Should Attend:
-      - Use a dash (- ) for bullet points.
-      - Make it sound exciting, professional, and invite-worthy.
-      - Length: 200-300 words.
-
-      Begin directly with "About the Event:"
-    `;
-
-    const completion = await groq.chat.completions.create({
-      messages: [
-        { role: "system", content: "You write professional event descriptions in clean plain text. Use plain section headers followed by a colon, and dashes for bullet points. No markdown." },
-        { role: "user", content: prompt }
-      ],
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.7,
-    });
-
-    let description = completion.choices[0]?.message?.content || "";
-    
-    // Clean up any stray markdown
-    description = description
-      .replace(/^#{1,6}\s*/gm, "")
-      .replace(/\*\*(.*?)\*\*/g, "$1")
-      .replace(/\*(.*?)\*/g, "$1")
-      .trim();
-
-    res.json({ description });
-
-  } catch (error) {
-    console.error("AI Gen Event Description Error:", error.message);
-    res.status(500).json({ description: "Failed to generate event description. Please try again." });
-  }
-});
-
-/**
  * @desc Generate Cover Letter for Candidates
  * @route POST /api/ai/cover-letter
  * @access Public
@@ -733,13 +654,13 @@ export const chatWithAI = asyncHandler(async (req, res) => {
       messages: [
         {
           role: "system",
-          content: "You are a professional, status-driven, and expert AI Career Strategist. Your goal is to help students and job seekers with high-level career strategy, roadmap execution, and professional growth. Keep answers professional and expert-grade. Use emojis sparingly."
+          content: "You are a friendly, encouraging, and expert Career Coach named 'OneStop Copilot'. Your goal is to help students and job seekers with career advice, resume tips, and interview prep. Keep answers concise (under 100 words) unless asked for details. Use emojis occasionally."
         },
         { role: "user", content: message }
       ],
       model: "llama-3.3-70b-versatile",
       temperature: 0.7,
-      max_tokens: 2048
+      max_tokens: 300
     });
 
     const text = chatCompletion.choices[0]?.message?.content || "I'm speechless!";
@@ -1040,356 +961,173 @@ export const generateHiringTest = async (jobTitle, jobDescription) => {
 };
 
 /**
- * @desc Validate company name and generate strategic briefing
+ * @desc Validate brand consistency and strength
  * @route POST /api/ai/interview/validate-brand
- * @access Public
  */
 export const validateBrand = asyncHandler(async (req, res) => {
-  const { company, topic } = req.body;
-
-  if (!company && !topic) {
-    return res.status(400).json({ isValid: false, message: "Please provide a company or a specific topic focus." });
-  }
-
+  const { brandName, description } = req.body;
   try {
     const groq = getGroqClient();
+    const prompt = `Evaluate the following brand for a tech company. 
+    Brand: ${brandName}
+    Description: ${description}
+    Provide a score and feedback on its uniqueness, relevance, and stickiness in JSON: 
+    { "score": 0-100, "feedback": "", "suggestions": [] }`;
     
-    const prompt = `
-      You are a Business Intelligence and Technical Expert. 
-      Task: 
-      1. Verify if the company name "${company || 'N/A'}" is a real, correctly spelled corporate entity.
-      2. Verify if the topic focus "${topic || 'N/A'}" is a real, valid professional or technical subject relevant for an interview.
-      
-      Instructions:
-      - If company is provided: check its existence and spelling. Misspellings are invalid.
-      - If topic is provided: check if it's a real field of study, technology, or business domain. Gibberish or non-professional topics are invalid.
-      - If both are provided, both must be valid.
-      - If either is invalid, set "isValid" to false and explain why in "message".
-      - If valid, generate a professional Strategy Briefing based on the company (if provided) and topic.
-
-      Return ONLY a JSON object:
-      {
-        "isValid": boolean,
-        "message": "...",
-        "visualIdentity": {
-           "color": "HEX color matching the brand (e.g. #FF0000)",
-           "accent": "Tailwind 'from- via- to-' gradient classes that match brand aesthetics",
-           "glow": "rgba string for box-shadow (e.g. rgba(255,0,0,0.3))"
-        },
-        "briefing": {
-           "overview": "Company or Domain overview...",
-           "marketContext": "...",
-           "targetCustomers": "...",
-           "competitors": "...",
-           "swot": { "strengths": [], "weaknesses": [], "opportunities": [], "threats": [] },
-           "growthOpportunities": "...",
-           "risks": "...",
-           "recommendations": "..."
-        }
-      }
-    `;
-
-    const chatCompletion = await groq.chat.completions.create({
+    const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.3,
-      response_format: { type: "json_object" }
+      temperature: 0.5,
     });
-
-    const result = JSON.parse(chatCompletion.choices[0]?.message?.content || "{}");
-    res.json(result);
-
+    res.json(JSON.parse(completion.choices[0]?.message?.content || "{}"));
   } catch (error) {
-    console.error("Brand Validation AI Error:", error);
-    res.status(500).json({ isValid: false, message: "Verification service currently unavailable." });
+    res.json({ score: 70, feedback: "Unable to analyze brand at this time.", suggestions: [] });
   }
 });
 
 /**
- * @desc High-speed brand identification for real-time UI updates
+ * @desc Identify brand from description
  * @route POST /api/ai/interview/identify
  */
 export const identifyBrand = asyncHandler(async (req, res) => {
-  const { company } = req.body;
-  if (!company || company.length < 2) return res.json({ isValid: false });
-
+  const { query } = req.body;
   try {
     const groq = getGroqClient();
-    const prompt = `Identify the brand identity for: "${company}". 
-    Return ONLY a JSON object:
-    {
-      "isValid": boolean,
-      "brandName": "Corrected name",
-      "visualIdentity": {
-         "color": "HEX",
-         "accent": "Tailwind gradient classes",
-         "glow": "rgba string"
-      },
-      "guide": "A short (2-sentence) professional advice summary for interviewing at this company."
-    }`;
-
+    const prompt = `Identify potential real-world companies or brand names based on this description: "${query}". Return a JSON list: { "brands": ["...", "..."] }`;
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
-      model: "llama-3.3-70b-versatile", // Faster model for real-time
-      temperature: 0.2,
-      response_format: { type: "json_object" }
+      model: "llama-3.3-70b-versatile",
     });
-
     res.json(JSON.parse(completion.choices[0]?.message?.content || "{}"));
-  } catch (e) {
-    res.json({ isValid: false });
+  } catch (error) {
+    res.json({ brands: ["Not found"] });
   }
 });
 
 /**
- * @desc Generate Strategic Career Roadmap (90-day plan)
+ * @desc Generate Career Roadmap
  * @route POST /api/ai/career/roadmap
  */
 export const generateCareerRoadmap = asyncHandler(async (req, res) => {
-  const { goal, currentSkills, experience } = req.body;
-
-  if (!goal) {
-    res.status(400);
-    throw new Error("Career goal is required");
-  }
-
+  const { goal } = req.body;
   try {
     const groq = getGroqClient();
-    const prompt = `
-      You are an Elite Career Architect. Generate a hyper-realistic, high-density 90-day execution roadmap for: "${goal}".
-      Context: Skills: ${currentSkills || "Not specified"}, Experience: ${experience || "Not specified"}.
-
-      Return ONLY a JSON object:
-      {
-        "objective": "High-level strategic objective (corporate grade)",
-        "phases": [
-          {
-            "title": "Phase 1: Foundation & Baseline",
-            "subtitle": "Technical mission statement for this block",
-            "timeframe": "Days 1-20",
-            "tasks": [
-               "Detailed task with tech/tools (e.g. 'Deploy CI/CD via GitHub Actions with Dockerized Node environment')",
-               "Specific certification or deep-dive target",
-               "System design baseline implementation",
-               "Portfolio architecture setup",
-               "Networking outreach strategy"
-            ]
-          },
-          { "title": "Phase 2: Core Scaling", "subtitle": "Expanding technical depth", "timeframe": "Days 21-45", "tasks": ["Implement complex backend logic", "Redis/Caching integration", "Performance monitoring setup", "Write 2 technical blogs", "Attend 1 domain-specific webinar"] },
-          { "title": "Phase 3: Advanced Complexity", "subtitle": "Niche skill mastery", "timeframe": "Days 46-70", "tasks": ["Multi-node deployment", "Security hardening (OWASP)", "Advanced UI/UX optimization", "Open source contribution", "Mock interview rounds"] },
-          { "title": "Phase 4: Market Domination", "subtitle": "Strategic personal branding and outreach", "timeframe": "Days 71-90", "tasks": ["Refine portfolio with live links", "Direct outreach to top 10 companies", "Interview negotiation training", "Finalize 3 complex projects", "Accept target offer"] }
-        ]
-      }
-      Rules:
-      1. EXACTLY 4-5 phases required.
-      2. Each phase must have 5-8 HIGHLY DETAILED tasks.
-      3. Use technical jargon (e.g., 'Microservices', 'K8s', 'LLM Agents', 'Redis Caching').
-      4. Ensure tasks are realistic for a 90-day window.
-      5. Return valid JSON only.
-    `;
-
+    const prompt = `Generate a 90-day career roadmap for the goal: "${goal}".
+    Format as JSON: { "objective": "", "phases": [{ "title": "", "subtitle": "", "timeframe": "", "tasks": [] }] }`;
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.7,
-      response_format: { type: "json_object" }
     });
-
-    res.json(JSON.parse(completion.choices[0]?.message?.content || "{}"));
+    const text = completion.choices[0]?.message?.content || "";
+    const clean = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    res.json(JSON.parse(clean));
   } catch (error) {
-    console.error("Roadmap Gen Error:", error);
-    // Best-in-class fallback
-    res.json({
-        objective: "Strategic Professional Trajectory",
-        phases: [
-          { title: "Initialization", subtitle: "Building the foundation", timeframe: "Days 1-20", tasks: ["Core competence review", "Tooling optimization", "Fundamental documentation review", "Infrastructure setup", "Github Org creation"] },
-          { title: "Project Deployment", subtitle: "Practical application", timeframe: "Days 21-45", tasks: ["Build MVP portfolio", "Implement high-value features", "Deployment to production", "Unit test coverage > 80%", "CI/CD Pipeline setup"] },
-          { title: "Market Engagement", subtitle: "Professional networking", timeframe: "Days 46-70", tasks: ["LinkedIn optimization", "Reach out to target companies", "Strategic interview preparation", "Technical blogging", "Mock interview rounds"] },
-          { title: "Final Optimization", subtitle: "Final scale and branding", timeframe: "Days 71-90", tasks: ["System performance tuning", "Advanced portfolio branding", "Negotiation workshop", "Target 3+ offers", "Community contribution"] }
-        ]
-    });
+    res.json({ objective: goal, phases: [] });
   }
 });
 
 /**
- * @desc Get Market Intelligence & Sector Analysis
+ * @desc Get Market Intelligence
  * @route POST /api/ai/career/insight
  */
 export const getMarketIntelligence = asyncHandler(async (req, res) => {
-  const { sector = "Technology", role = "Software Engineer" } = req.body;
-
+  const { role } = req.body;
   try {
     const groq = getGroqClient();
-    const prompt = `
-      Provide a Real-time Market Intelligence report for the "${role}" role in the "${sector}" sector.
-      Return ONLY a JSON object:
-      {
-        "demandIndex": "Extreme" | "High" | "Rising" | "Stable" | "Niche",
-        "hiringVelocity": "Rapid" | "Moderate" | "Aggressive" | "Selective",
-        "yoyGrowth": "+14.2% (example)",
-        "projectedGrowth": "+28% over 36 months (example)",
-        "marketSentiment": "Strong Bullish" | "Bullish" | "Neutral" | "Consolidating",
-        "avgSalary": "₹24L+ (example)",
-        "salaryJunior": "₹8L - ₹14L (example)",
-        "salaryMid": "₹15L - ₹28L (example)",
-        "salarySenior": "₹30L+ (example)",
-        "remoteSplit": "65% Remote / 35% Hybrid (example)",
-        "topTechStack": ["React 19", "Bun", "Go", "PostgreSQL"],
-        "briefing": "Executive-grade 2-sentence summary of market conditions and upcoming trajectory."
-      }
-      Format: Strict JSON.
-    `;
-
+    const prompt = `Provide market intelligence for the role: "${role}". 
+    Include global demand, average salary, growth rate, and top companies.
+    Format as JSON: { "demand": "", "salary": "", "growth": "", "topCompanies": [], "topLocations": [] }`;
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.2,
-      response_format: { type: "json_object" }
     });
-
-    res.json(JSON.parse(completion.choices[0]?.message?.content || "{}"));
+    const text = completion.choices[0]?.message?.content || "";
+    const clean = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    res.json(JSON.parse(clean));
   } catch (error) {
-    console.error("Market Intel Error:", error);
-    res.json({
-        demandIndex: "Rising",
-        avgSalary: "₹18L - ₹32L",
-        topTechStack: ["React", "Node.js", "Docker"],
-        briefing: "Market trends indicate a sustained demand for full-stack competencies with a focus on modern architectures."
-    });
+    res.json({ demand: "High", salary: "Competitive", growth: "Stable", topCompanies: [], topLocations: [] });
   }
 });
 
 /**
- * @desc Get Skill Density Assessment Data
+ * @desc Get Skill Assessment
  * @route POST /api/ai/career/skills
- * @access Public
  */
 export const getSkillAssessment = asyncHandler(async (req, res) => {
-  const { currentSkills = [], targetGoal } = req.body;
-
+  const { targetGoal } = req.body;
   try {
     const groq = getGroqClient();
-    const prompt = `
-      Analyze these skills: [${currentSkills.join(", ")}] against the goal: "${targetGoal}".
-      Provide density points (0-100) for these 4 dimensions: Architecture, Backend, AI/ML, Product.
-      Return ONLY a JSON object:
-      {
-        "density": { "architecture": 85, "backend": 70, "aiml": 40, "product": 60 },
-        "syncStatus": "92% (example)",
-        "missingCritical": "Explain the biggest gap in 1 sentence."
-      }
-    `;
-
+    const prompt = `Analyze skills needed for: "${targetGoal}". 
+    Provide density scores (0-100) for Architecture, Backend, AI/ML, and Product.
+    Format as JSON: { "density": { "architecture": 0, "backend": 0, "aiml": 0, "product": 0 }, "analysis": "" }`;
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.2,
-      response_format: { type: "json_object" }
     });
+    const text = completion.choices[0]?.message?.content || "";
+    const clean = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    res.json(JSON.parse(clean));
+  } catch (error) {
+    res.json({ density: { architecture: 50, backend: 50, aiml: 50, product: 50 }, analysis: "Unavailable" });
+  }
+});
 
+/**
+ * @desc Generate Event Description
+ * @route POST /api/ai/event-description
+ */
+export const generateEventDescription = asyncHandler(async (req, res) => {
+  const { title, type } = req.body;
+  try {
+    const groq = getGroqClient();
+    const prompt = `Generate a professional description for a ${type} event titled "${title}". 
+    Format as JSON: { "description": "" }`;
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+    });
     res.json(JSON.parse(completion.choices[0]?.message?.content || "{}"));
   } catch (error) {
-    console.error("Skill Assessment Error:", error);
-    res.json({
-        density: { architecture: 65, backend: 70, aiml: 45, product: 55 },
-        syncStatus: "78%",
-        missingCritical: "Target competency in system scalability is the primary gap."
-    });
+    res.json({ description: `Join us for our ${title} event!` });
   }
 });
 
 /**
- * @desc Auto-generate Coding Directives for Code Arena
+ * @desc Generate Coding Directives
  * @route POST /api/ai/coding-directives
- * @access Public
  */
 export const generateCodingDirectives = asyncHandler(async (req, res) => {
-  const { topic, difficulty, language } = req.body;
-  
-  if (!topic) {
-    res.status(400);
-    throw new Error("Topic is required");
-  }
-
+  const { problemContext } = req.body;
   try {
     const groq = getGroqClient();
-    const prompt = `
-      You are a technical mentor. Suggest 3-4 specific "Custom Directives" for a coding challenge.
-      These directives should help narrow down the focus and make the challenge more interesting or specific.
-
-      Topic: ${topic}
-      Difficulty: ${difficulty || "Medium"}
-      Language: ${language || "JavaScript"}
-
-      Examples of directives:
-      - "Focus on memory management and pointers"
-      - "Use graph theory concepts like Dijkstra's algorithm"
-      - "Apply functional programming patterns"
-      - "Ensure the solution handles massive data streams"
-
-      Return ONLY a single paragraph with 3-4 clear, technical directives separated by commas. No markdown.
-    `;
-
+    const prompt = `Generate step-by-step coding instructions and directives for: "${problemContext}". 
+    Format as JSON: { "directives": ["...", "..."] }`;
     const completion = await groq.chat.completions.create({
-      messages: [
-        { role: "system", content: "You provide short, technical coding directives in plain text." },
-        { role: "user", content: prompt }
-      ],
+      messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.7,
-      max_tokens: 150
     });
-
-    res.json({ directives: completion.choices[0]?.message?.content || "" });
+    res.json(JSON.parse(completion.choices[0]?.message?.content || "{}"));
   } catch (error) {
-    console.error("Directives Generation Error:", error);
-    res.status(500).json({ message: "Failed to generate directives." });
+    res.json({ directives: ["Break down the problem into smaller tasks.", "Implement core logic first."] });
   }
 });
 
 /**
- * @desc Generate AI Bio/Headline
+ * @desc Generate Professional Bio
  * @route POST /api/ai/generate-bio
- * @access Public
  */
 export const generateBio = asyncHandler(async (req, res) => {
-  const { name, skills } = req.body;
-
-  if (!name || !skills) {
-    res.status(400);
-    throw new Error("Name and skills are required for bio generation.");
-  }
-
+  const { userData } = req.body;
   try {
     const groq = getGroqClient();
-    const prompt = `
-      Create a professional, modern, and engaging 2-3 sentence bio/headline for a portfolio.
-      Name: ${name}
-      Skills: [${Array.isArray(skills) ? skills.join(", ") : skills}]
-
-      The bio should:
-      1. Start with an impactful statement.
-      2. Mention the core expertise from the skills list.
-      3. End with a goal or value proposition (e.g., 'Passionate about building scalable web solutions').
-      4. Avoid being too generic or flowery.
-      5. Keep it under 200 characters if possible.
-
-      Return ONLY the bio text. No introduction or quotes.
-    `;
-
+    const prompt = `Generate 3 professional bios (Short, Medium, Long) based on these details: ${JSON.stringify(userData)}. 
+    Return JSON: { "short": "", "medium": "", "long": "" }`;
     const completion = await groq.chat.completions.create({
-      messages: [
-        { role: "system", content: "You are an expert career coach and professional writer." },
-        { role: "user", content: prompt }
-      ],
+      messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.7,
-      max_tokens: 100
     });
-
-    res.json({ bio: completion.choices[0]?.message?.content || "" });
+    res.json(JSON.parse(completion.choices[0]?.message?.content || "{}"));
   } catch (error) {
-    console.error("Bio Generation Error:", error);
-    res.status(500).json({ message: "Failed to generate bio." });
+    res.json({ short: "Professional", medium: "Experienced Professional", long: "Highly experienced professional with a focus on excellence." });
   }
 });
