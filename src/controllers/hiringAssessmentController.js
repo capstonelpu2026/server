@@ -219,6 +219,7 @@ export const reportAssessmentViolation = asyncHandler(async (req, res) => {
  */
 export const resetHiringAssessment = asyncHandler(async (req, res) => {
   const { applicationId } = req.params;
+  const { proctoringMode, duration } = req.body;
 
   const application = await Application.findById(applicationId).populate("candidate", "name email").populate("job", "title description");
   if (!application) return res.status(404).json({ message: "Application not found" });
@@ -238,19 +239,26 @@ export const resetHiringAssessment = asyncHandler(async (req, res) => {
   application.assessment.violations = 0;
   application.assessment.faceViolations = 0;
   application.assessment.completedAt = undefined;
+  
+  // Apply new proctoring configuration if provided
+  if (proctoringMode) application.assessment.proctoringMode = proctoringMode;
+  if (duration) application.assessment.duration = duration;
 
   await application.save();
+
+  const modeLabel = proctoringMode === 'human' ? 'Live Invigilator' : 'AI Proctoring';
+  const durationMins = duration ? Math.round(duration / 60) : Math.round((application.assessment.duration || 3600) / 60);
 
   // Notify Candidate
   await notifyUser({
     userId: application.candidate._id,
     email: application.candidate.email,
     title: "Assessment Reset: You have a new test!",
-    message: `The recruiter for "${application.job.title}" has reset your technical assessment. You have been assigned a completely fresh set of questions. You can now re-attempt the test from your dashboard. Good luck!`,
+    message: `The recruiter for "${application.job.title}" has reset your technical assessment with ${modeLabel} mode (${durationMins} minutes). You have been assigned a completely fresh set of questions. You can now re-attempt the test from your dashboard. Good luck!`,
     type: "application",
     emailEnabled: true,
     emailSubject: "Action Required: Assessment Re-conducted - OneStop Hub"
   });
 
-  res.json({ message: "Assessment reset successfully! A completely new AI test has been generated for the candidate. ✅" });
+  res.json({ message: `Assessment reset with ${modeLabel} mode (${durationMins}m)! A completely new AI test has been generated. ✅` });
 });

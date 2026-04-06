@@ -10,6 +10,7 @@ import {
   enhanceCV,
   generateQuiz,
   analyzeAudioAnswer,
+  getCompanyIntelligence,
   validateBrand,
   identifyBrand,
   generateCareerRoadmap,
@@ -35,6 +36,7 @@ router.post("/interview/questions", generateQuestions);
 router.post("/interview/validate-brand", validateBrand);
 router.post("/interview/identify", identifyBrand);
 router.post("/interview/analyze", analyzeAnswer);
+router.post("/interview/company-intel", getCompanyIntelligence);
 router.post("/chat", chatWithAI);
 
 // Audio Analysis (Local Multer)

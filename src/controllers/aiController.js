@@ -25,91 +25,111 @@ const getGeminiClient = () => {
  * @access Public
  */
 export const generateQuestions = asyncHandler(async (req, res) => {
-  const { role = "Software Engineer", topic, difficulty = "Standard", company = "Tech Industry", experience = "Intermediate", personality = "Professional" } = req.body;
+  const { 
+    role = "Software Engineer", 
+    topic = "General", 
+    difficulty = "Standard", 
+    company = "Tech Industry", 
+    experience = "Intermediate", 
+    personality = "Professional", 
+    count,
+    duration = "15",
+    focus = "Mixed"
+  } = req.body;
+  
+  // Prioritize "count" from UI, fallback to "duration" calculation
+  const totalQuestions = count ? parseInt(count) : Math.max(3, Math.floor(parseInt(duration) / 2));
+  
+  // Calculate ratios: Professional interviews should have fewer/no MCQs unless it's a "Mixed" focus
+  // For "Technical Only" or "Behavioral", we skew heavily towards open-ended text questions
+  let textualCount;
+  if (focus === "Technical Only" || focus === "System Design") {
+      textualCount = totalQuestions; // 100% Textual for high-fidelity technical interviews
+  } else if (focus === "HR & Behavioral") {
+      textualCount = totalQuestions; // 100% Textual for behavioral
+  } else {
+      // "Mixed" or others: 80% Textual, 20% MCQ (minimum 1 MCQ if total > 3)
+      textualCount = Math.max(1, Math.ceil(totalQuestions * 0.8));
+  }
+  const mcqCount = totalQuestions - textualCount;
 
   if (!process.env.GROQ_API_KEY) {
-    console.warn("⚠️ GROQ_API_KEY missing. Using fallback interview questions.");
-    return res.json({ 
-      questions: [
-        { type: "text", question: "Tell me about a challenging project you worked on." },
-        { type: "mcq", question: "What is the time complexity of binary search?", options: ["O(n)", "O(log n)", "O(n^2)", "O(1)"], answer: "O(log n)" },
-        { type: "text", question: "What is your greatest strength as a developer?" },
-        { type: "mcq", question: "Which HTTP method is used to update a resource?", options: ["GET", "POST", "PUT", "DELETE"], answer: "PUT" },
-        { type: "mcq", question: "In React, what hook is used for side effects?", options: ["useState", "useEffect", "useMemo", "useCallback"], answer: "useEffect" }
-      ],
-      isFallback: true 
-    });
+    console.warn("⚠️ GROQ_API_KEY missing. Using professional fallback interview questions.");
+    const fallbacks = [
+      { type: "text", question: `Explain how you would architect a scalable system for ${company} if you were hired as a ${role}.` },
+      { type: "text", question: "Can you walk me through a complex technical challenge where you had to make a trade-off between speed and maintainability?" },
+      { type: "text", question: `How do you stay updated with the latest trends in ${topic} and how do you apply them to your current workflow?` },
+      { type: "mcq", question: "In a microservices architecture, which pattern is primarily used to ensure data consistency across multiple services?", options: ["Saga Pattern", "Single Database Pattern", "Direct API Calling", "Shared Memory"], answer: "Saga Pattern" },
+      { type: "text", question: `Describe your experience with CI/CD pipelines and how you ensure code quality in a high-velocity environment like ${company}.` },
+      { type: "text", question: "Describe a time you had to lead a project under extreme pressure. What was the outcome?" },
+      { type: "mcq", question: "Which of the following is a primary characteristic of a RESTful API?", options: ["Statelessness", "WebSocket connection", "Required XML format", "Tight coupling"], answer: "Statelessness" }
+    ];
+    // Scale fallback to match requested count
+    const scaledFallbacks = Array.from({ length: totalQuestions }).map((_, i) => fallbacks[i % fallbacks.length]);
+    return res.json({ questions: scaledFallbacks, isFallback: true });
   }
 
   try {
     const groq = getGroqClient();
     
-    // Updated prompt for company-specific interview
     const prompt = `
-      Act as a Senior Technical Recruiter at ${company} with a ${personality} personality. 
-      You are conducting a mock interview for a "${role}" position (Experience Level: ${experience}). 
+      Act as a Senior Executive Recruiter at ${company} with a ${personality} personality. 
+      Conduct a high-fidelity mock interview for a "${role}" position (Seniority: ${experience}). 
       
-      Generate a realistic interview set of 8 questions that ${company} is likely to ask for this role.
-      Topic Focus: ${topic || "General"}
-      Difficulty: ${difficulty}
-      Interviewer Tone: ${personality} (Adjust the language of questions to match this tone)
+      TASK: Generate EXACTLY ${totalQuestions} realistic and challenging interview questions.
       
-      Structure:
-      - 3 Deep Behavioral/Technical Questions (type: "text") tailored to ${company}'s culture and your ${personality} persona.
-      - 5 Multiple Choice Questions (type: "mcq") with 4 options and the correct answer, testing technical fundamentals at ${difficulty} level.
-
-      Return ONLY a JSON array of objects. No markdown.
-      Format:
+      CRITICAL FOCUS (Strictly follow these): 
+      - The interview MUST be centered on: ${focus}.
+      - Specific Topic: ${topic}.
+      - Difficulty: ${difficulty}.
+      - Persona Tone: ${personality}.
+      
+      RULES FOR QUALITY:
+      - If focus is "Technical Only", ask deep technical/architectural questions. NO basic questions.
+      - If focus is "HR & Behavioral", focus on leadership and STAR-method questions.
+      - MCQs should ONLY be included if focus is "Mixed" and must be ADVANCED concepts.
+      
+      STRICT FORMATTING (SAVE TOKENS):
+      - Return ${textualCount} "text" and ${mcqCount} "mcq" questions.
+      - Be concise in question text to avoid truncation.
+      - Return ONLY a raw JSON array. No markdown, no intro/outro.
+      
+      JSON TEMPLATE:
       [
         { "type": "text", "question": "..." },
-        { "type": "mcq", "question": "...", "options": ["Option A", "Option B", "Option C", "Option D"], "answer": "Exact text of correct option" }
+        { "type": "mcq", "question": "...", "options": ["A", "B", "C", "D"], "answer": "Answer Text" }
       ]
     `;
 
     const chatCompletion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
-      model: "llama-3.3-70b-versatile", // High performance model
+      model: "llama-3.3-70b-versatile",
       temperature: 0.7,
-      max_tokens: 2048
+      max_tokens: 4096
     });
 
     const text = chatCompletion.choices[0]?.message?.content || "";
-    const cleanText = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    
-    let questions;
-    try {
-        questions = JSON.parse(cleanText);
-    } catch (e) {
-        console.error("JSON Parse Error:", e);
-        // Fallback robust parsing if AI returns malformed or truncated JSON
-        if (cleanText.startsWith("[") && !cleanText.endsWith("]")) {
-            try {
-                const repaired = cleanText.substring(0, cleanText.lastIndexOf("}") + 1) + "]";
-                questions = JSON.parse(repaired);
-            } catch (inner) {
-                questions = [
-                    { type: "text", question: `Explain a complex technical challenge you solved as a ${role}.` }
-                ];
-            }
-        } else {
-            questions = [
-                { type: "text", question: `Explain a complex technical challenge you solved as a ${role}.` }
-            ];
-        }
+    const firstBrace = text.indexOf("[");
+    const lastBrace = text.lastIndexOf("]");
+    let cleanText = text;
+    if (firstBrace !== -1 && lastBrace !== -1) {
+       cleanText = text.substring(firstBrace, lastBrace + 1);
     }
     
-    res.json({ questions });
+    let questions = JSON.parse(cleanText);
+    if (!Array.isArray(questions)) throw new Error("AI did not return an array");
+    
+    res.json({ questions: questions.slice(0, totalQuestions) });
 
   } catch (error) {
     console.error("AI Generation Error:", error.message);
-    res.json({ 
-      questions: [
-        { type: "text", question: `Tell me about a time you faced a challenge as a ${role}.` },
-        { type: "mcq", question: "What does CSS stand for?", options: ["Cascading Style Sheets", "Creative Style System", "Computer Style Sheets", "Colorful Style Sheets"], answer: "Cascading Style Sheets" },
-        { type: "text", question: "Describe a difficult bug you fixed recently." }
-      ],
-      isFallback: true 
-    });
+    const fallbacks = [
+        { type: "text", question: `Explain a complex technical challenge you solved as a ${role} at ${company}.` },
+        { type: "text", question: "Describe a situation where you had to deal with a difficult stakeholder or team member." },
+        { type: "text", question: `What are the most important considerations when designing for scale in ${topic}?` }
+    ];
+    const scaledFallbacks = Array.from({ length: totalQuestions }).map((_, i) => fallbacks[i % fallbacks.length]);
+    res.json({ questions: scaledFallbacks, isFallback: true });
   }
 });
 
@@ -307,67 +327,70 @@ export const analyzeAnswer = asyncHandler(async (req, res) => {
  */
 
 export const analyzeAudioAnswer = asyncHandler(async (req, res) => {
-  const { question, company = "General Tech", role = "Developer", personality = "Professional" } = req.body;
+  const { question, company = "General Tech", role = "Developer", personality = "Professional", transcript: bodyTranscript } = req.body;
   const audioFile = req.file;
 
-  if (!audioFile) {
+  if (!audioFile && bodyTranscript === undefined) {
      res.status(400); 
-     throw new Error("Audio file is required");
+     throw new Error("Audio file or text transcript is required");
   }
 
-  let transcript = "";
-  let tempPath = audioFile.path;
+  let transcript = bodyTranscript || "";
+  let tempPath = audioFile?.path;
 
-  try {
-     const groq = getGroqClient();
-     
-     // Ensure file has webm extension if not already present
-     if (!tempPath.endsWith('.webm') && !tempPath.endsWith('.wav') && !tempPath.endsWith('.mp3')) {
-        const newPath = `${audioFile.path}.webm`;
-        try {
-           fs.renameSync(audioFile.path, newPath);
-           tempPath = newPath;
-        } catch (e) {
-           console.warn("Could not rename file, using original path:", e.message);
-        }
-     }
-
-     console.log(`[AI] Transcribing: ${tempPath} (${audioFile.size} bytes, original type: ${audioFile.mimetype})`);
-
-     // 1. Transcribe
-     const translation = await groq.audio.transcriptions.create({
-       file: fs.createReadStream(tempPath),
-       model: "whisper-large-v3",
-       response_format: "json",
-       temperature: 0.0
-     });
-     
-     transcript = translation.text;
-     console.log(`[AI] Transcript received: ${transcript.substring(0, 50)}...`);
-     
-     // Cleanup temp file
+  // Only run transcription if there is an audio file and no direct transcript
+  if (audioFile && !bodyTranscript) {
      try {
-        if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
-     } catch (e) {
-        console.warn("Could not delete temp file:", e.message);
+        const groq = getGroqClient();
+        
+        // Ensure file has webm extension if not already present
+        if (!tempPath.endsWith('.webm') && !tempPath.endsWith('.wav') && !tempPath.endsWith('.mp3')) {
+           const newPath = `${audioFile.path}.webm`;
+           try {
+              fs.renameSync(audioFile.path, newPath);
+              tempPath = newPath;
+           } catch (e) {
+              console.warn("Could not rename file, using original path:", e.message);
+           }
+        }
+
+        console.log(`[AI] Transcribing: ${tempPath} (${audioFile.size} bytes, original type: ${audioFile.mimetype})`);
+
+        // 1. Transcribe
+        const translation = await groq.audio.transcriptions.create({
+          file: fs.createReadStream(tempPath),
+          model: "whisper-large-v3",
+          response_format: "json",
+          temperature: 0.0
+        });
+        
+        transcript = translation.text;
+        console.log(`[AI] Transcript received: ${transcript.substring(0, 50)}...`);
+        
+        // Cleanup temp file
+        try {
+           if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+        } catch (e) {
+           console.warn("Could not delete temp file:", e.message);
+        }
+        
+     } catch (err) {
+        console.error("Transcription Error Full:", err);
+        // Cleanup files
+        if (fs.existsSync(audioFile.path)) {
+           try { fs.unlinkSync(audioFile.path); } catch (e) { console.warn(e.message); }
+        }
+        if (tempPath && fs.existsSync(tempPath)) {
+           try { fs.unlinkSync(tempPath); } catch (e) { console.warn(e.message); }
+        }
+        
+        // Return detailed error to help debugging
+        return res.status(500).json({
+           message: "Transcription failed",
+           error: err.message,
+           details: err.response?.data || "No extra details"
+        });
      }
-     
-  } catch (err) {
-     console.error("Transcription Error Full:", err);
-     // Cleanup files
-     if (fs.existsSync(audioFile.path)) {
-        try { fs.unlinkSync(audioFile.path); } catch (e) { console.warn(e.message); }
-     }
-     if (tempPath && fs.existsSync(tempPath)) {
-        try { fs.unlinkSync(tempPath); } catch (e) { console.warn(e.message); }
-     }
-     
-     // Return detailed error to help debugging
-     return res.status(500).json({
-        message: "Transcription failed",
-        error: err.message,
-        details: err.response?.data || "No extra details"
-     });
   }
 
   // 2. Analyze (Re-using logic from analyzeAnswer but inline for now to avoid refactor complexity)
@@ -1129,5 +1152,65 @@ export const generateBio = asyncHandler(async (req, res) => {
     res.json(JSON.parse(completion.choices[0]?.message?.content || "{}"));
   } catch (error) {
     res.json({ short: "Professional", medium: "Experienced Professional", long: "Highly experienced professional with a focus on excellence." });
+  }
+});
+
+/**
+ * @desc Get real-time company intelligence for interview prep
+ * @route POST /api/ai/interview/company-intel
+ * @access Public
+ */
+export const getCompanyIntelligence = asyncHandler(async (req, res) => {
+  const { company, role } = req.body;
+
+  if (!company) {
+    return res.status(400).json({ message: "Company name is required" });
+  }
+
+  try {
+    const groq = getGroqClient();
+    const prompt = `
+      Act as a high-end corporate recruiter and market analyst. 
+      Analyze the company "${company}" specifically for a candidate applying for a "${role}" position.
+      
+      Provide enterprise-grade intelligence in the following JSON format:
+      {
+        "philosophy": "A 2-sentence summary of their hiring culture and core values (e.g. Google's 'Googliness').",
+        "requirements": ["3 key bullet points of what they MUST see in a ${role} candidate"],
+        "focus": ["4 specific technical or behavioral topics the interview will highlight"],
+        "difficulty_score": "High/Medium/Extreme based on market reputation"
+      }
+
+      Return ONLY the raw JSON. No conversational text.
+    `;
+
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.5,
+      response_format: { type: "json_object" }
+    });
+
+    const text = completion.choices[0]?.message?.content || "";
+    let cleanText = text;
+    const firstBrace = text.indexOf("{");
+    const lastBrace = text.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      cleanText = text.substring(firstBrace, lastBrace + 1);
+    }
+
+    const intelligence = JSON.parse(cleanText || "{}");
+    res.json({ intelligence });
+
+  } catch (error) {
+    console.error("Company Intel Error:", error);
+    res.json({
+      intelligence: {
+        philosophy: `A leading innovator in the industry, focused on excellence and scalability for ${role} roles.`,
+        requirements: ["Strong technical fundamentals", "Cultural alignment", "Problem-solving mindset"],
+        focus: ["System Architecture", "Behavioral Alignment", "Technical Depth", "Execution"],
+        difficulty_score: "High"
+      }
+    });
   }
 });
