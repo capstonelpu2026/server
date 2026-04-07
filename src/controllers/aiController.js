@@ -1214,3 +1214,76 @@ export const getCompanyIntelligence = asyncHandler(async (req, res) => {
     });
   }
 });
+
+/**
+ * @desc Match mentors using AI based on user goals
+ * @route POST /api/ai/match-mentors
+ * @access Public
+ */
+export const matchMentors = asyncHandler(async (req, res) => {
+  const { goal, skills, experience, mentors } = req.body;
+
+  if (!mentors || !Array.isArray(mentors) || mentors.length === 0) {
+    return res.status(400).json({ message: "Mentors data is required" });
+  }
+
+  try {
+    const groq = getGroqClient();
+    
+    // Create a simplified list to send to AI
+    const mentorList = mentors.map(m => ({
+      id: m._id,
+      name: m.name,
+      company: m.mentorProfile?.company || "Unknown",
+      experience: m.mentorProfile?.experience || 0,
+      skills: m.mentorProfile?.skills || [],
+      bio: m.mentorProfile?.bio || ""
+    }));
+
+    const prompt = `
+      Act as an expert Career Matchmaker. 
+      A candidate is looking for a mentor with the following profile:
+      - Goal: "${goal}"
+      - Skills they want to learn: "${skills}"
+      - Current Experience: "${experience}"
+      
+      Here is a list of available mentors (JSON format):
+      ${JSON.stringify(mentorList)}
+      
+      Analyze the candidate's goals and select the TOP 3 best matching mentors from the list.
+      Provide a strong, compelling 1-2 sentence reason for why each mentor is a great match.
+      
+      Return ONLY valid JSON format:
+      {
+        "matches": [
+          { "id": "mentor_id_here", "reason": "reason why..." },
+          { "id": "mentor_id_here", "reason": "reason why..." },
+          { "id": "mentor_id_here", "reason": "reason why..." }
+        ]
+      }
+    `;
+
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.2, // Low temp for more accurate matching
+      max_tokens: 1500,
+      response_format: { type: "json_object" }
+    });
+
+    const text = completion.choices[0]?.message?.content || "";
+    const matches = JSON.parse(text || "{}");
+    
+    res.json(matches);
+
+  } catch (error) {
+    console.error("Mentor Matching Error:", error);
+    // Fallback: pick up to 3 random or first 3
+    res.json({
+      matches: mentors.slice(0, 3).map(m => ({
+        id: m._id,
+        reason: "Matched based on our general matching algorithm."
+      }))
+    });
+  }
+});

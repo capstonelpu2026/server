@@ -18,7 +18,8 @@ import {
   getSkillAssessment,
   generateEventDescription,
   generateCodingDirectives,
-  generateBio
+  generateBio,
+  matchMentors
 } from "../controllers/aiController.js";
 import { 
   generateProblems, 
@@ -56,6 +57,7 @@ router.post("/career/insight", getMarketIntelligence);
 router.post("/career/skills", getSkillAssessment);
 router.post("/coding-directives", generateCodingDirectives);
 router.post("/generate-bio", generateBio);
+router.post("/match-mentors", matchMentors);
 
 // 🚀 OneStop Code Arena
 router.post("/code-arena/ai-meta", generateContestMeta);
