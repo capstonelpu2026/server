@@ -3,6 +3,7 @@ import asyncHandler from "express-async-handler";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import nodeFetch from "node-fetch";
 import fs from "fs";
+import pdfParse from "pdf-parse";
 
 const getGroqClient = () => {
   if (!process.env.GROQ_API_KEY) {
@@ -1035,8 +1036,21 @@ export const generateCareerRoadmap = asyncHandler(async (req, res) => {
   const { goal } = req.body;
   try {
     const groq = getGroqClient();
-    const prompt = `Generate a 90-day career roadmap for the goal: "${goal}".
-    Format as JSON: { "objective": "", "phases": [{ "title": "", "subtitle": "", "timeframe": "", "tasks": [] }] }`;
+    const prompt = `Generate a 90-day career roadmap curriculum for the goal: "${goal}".
+    Format as strictly JSON: { 
+      "objective": "", 
+      "phases": [{ 
+        "title": "", 
+        "subtitle": "", 
+        "timeframe": "", 
+        "modules": [{ 
+           "title": "Module name (e.g., React Fundamentals)", 
+           "estTime": "e.g., 20 Hours or 3 Days", 
+           "type": "Theory or Project or Assessment",
+           "description": "Short 1-sentence description"
+        }] 
+      }] 
+    }`;
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
@@ -1054,21 +1068,97 @@ export const generateCareerRoadmap = asyncHandler(async (req, res) => {
  * @route POST /api/ai/career/insight
  */
 export const getMarketIntelligence = asyncHandler(async (req, res) => {
-  const { role } = req.body;
+  const { role, location } = req.body;
+  const resumeFile = req.file;
+
+  if (!role) return res.status(400).json({ error: "Role is required" });
+
+  if (!resumeFile) {
+    return res.status(400).json({ error: "Resume file is required for deep-dive analysis." });
+  }
+
+  // Extract text from the uploaded file
+  let resumeText = '';
+  try {
+    const filePath = resumeFile.path;
+    const fileBuffer = fs.readFileSync(filePath);
+    
+    if (resumeFile.originalname.endsWith('.pdf')) {
+      const pdfData = await pdfParse(fileBuffer);
+      resumeText = pdfData.text;
+    } else {
+      // .txt, .doc, .docx - read as plain text
+      resumeText = fileBuffer.toString('utf-8');
+    }
+    
+    // Cleanup uploaded file
+    try { fs.unlinkSync(filePath); } catch(e) {}
+    
+    if (!resumeText || resumeText.trim().length < 20) {
+      return res.status(400).json({ error: "Could not extract text from resume. Please upload a valid document." });
+    }
+  } catch (parseErr) {
+    console.error("Resume Parse Error:", parseErr.message);
+    return res.status(400).json({ error: "Failed to read resume file." });
+  }
+
   try {
     const groq = getGroqClient();
-    const prompt = `Provide market intelligence for the role: "${role}". 
-    Include global demand, average salary, growth rate, and top companies.
-    Format as JSON: { "demand": "", "salary": "", "growth": "", "topCompanies": [], "topLocations": [] }`;
+    const prompt = `You are an elite Career Intelligence AI.
+    Analyze the labor market for the role: "${role}" in the region: "${location || 'Global'}".
+    Provide high-fidelity localized industry intelligence including compensation indices, demand velocity, and future growth trajectories for this geography.
+
+    Crucially, evaluate the provided CANDIDATE RESUME against this specific role to identify actual gaps, needs to improve, and how well they fit.
+
+    CANDIDATE RESUME:
+    """
+    ${resumeText.substring(0, 5000)}
+    """
+    
+    Return ONLY this JSON structure (no extra text):
+    {
+      "demandIndex": "<Extreme | High | Balanced | Selective>",
+      "hiringVelocity": "<Rapid | Consistent | Deliberate | Strategic>",
+      "yoyGrowth": "<+X% annual growth>",
+      "marketSentiment": "<SURGING | EXPANDING | STABLE | CONTRACTING>",
+      "avgSalary": "<Average annual salary with currency, e.g. $120k or ₹25L>",
+      "salaryJunior": "<Junior salary range>",
+      "salaryMid": "<Mid-level salary range>",
+      "salarySenior": "<Senior/Elite salary range>",
+      "topCompanies": ["<List 5 top companies hiring for this role>"],
+      "topLocations": [
+        { "city": "<City Name>", "description": "<Brief 1-sentence reason why this is a hub>", "demandLevel": "<MAX_DEMAND | HIGH | STEADY>" }
+      ],
+      "topSkills": ["<Top 5 required skills missing from candidate's resume>"],
+      "marketMomentum": {
+        "status": "<Positive | Neutral | Declining>",
+        "trend": "<A 4-5 sentence extremely detailed tactical briefing. Analyze how this specific candidate fits the role, what specific gaps they have according to industry standards, and explicit steps to improve against current market liquidity.>"
+      }
+    }`;
+
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
     });
+
     const text = completion.choices[0]?.message?.content || "";
     const clean = text.replace(/```json/g, "").replace(/```/g, "").trim();
     res.json(JSON.parse(clean));
   } catch (error) {
-    res.json({ demand: "High", salary: "Competitive", growth: "Stable", topCompanies: [], topLocations: [] });
+    console.error("Market Intel Error:", error);
+    res.json({ 
+      demandIndex: "High", 
+      hiringVelocity: "Consistent", 
+      yoyGrowth: "+12%", 
+      marketSentiment: "STABLE",
+      avgSalary: "Competitive",
+      salaryJunior: "Varies",
+      salaryMid: "Varies",
+      salarySenior: "Varies",
+      topCompanies: [], 
+      topLocations: [],
+      marketMomentum: { status: "Neutral", trend: "Steady demand across sectors" }
+    });
   }
 });
 
@@ -1078,20 +1168,113 @@ export const getMarketIntelligence = asyncHandler(async (req, res) => {
  */
 export const getSkillAssessment = asyncHandler(async (req, res) => {
   const { targetGoal } = req.body;
+  const resumeFile = req.file;
+
+  if (!targetGoal) {
+    return res.status(400).json({ error: "Target role is required." });
+  }
+  if (!resumeFile) {
+    return res.status(400).json({ error: "Resume file is required." });
+  }
+
+  // Extract text from the uploaded file
+  let resumeText = '';
+  try {
+    const filePath = resumeFile.path;
+    const fileBuffer = fs.readFileSync(filePath);
+    
+    if (resumeFile.originalname.endsWith('.pdf')) {
+      const pdfData = await pdfParse(fileBuffer);
+      resumeText = pdfData.text;
+    } else {
+      // .txt, .doc, .docx - read as plain text
+      resumeText = fileBuffer.toString('utf-8');
+    }
+    
+    // Cleanup uploaded file
+    try { fs.unlinkSync(filePath); } catch(e) {}
+    
+    if (!resumeText || resumeText.trim().length < 20) {
+      return res.status(400).json({ error: "Could not extract text from resume. Please upload a text-based PDF or .txt file." });
+    }
+  } catch (parseErr) {
+    console.error("Resume Parse Error:", parseErr.message);
+    return res.status(400).json({ error: "Failed to read resume file. Please try a .txt or text-based .pdf." });
+  }
+
   try {
     const groq = getGroqClient();
-    const prompt = `Analyze skills needed for: "${targetGoal}". 
-    Provide density scores (0-100) for Architecture, Backend, AI/ML, and Product.
-    Format as JSON: { "density": { "architecture": 0, "backend": 0, "aiml": 0, "product": 0 }, "analysis": "" }`;
+    const prompt = `You are a world-class Career Intelligence AI used by Fortune 500 recruiters.
+
+TASK: Analyze the candidate's RESUME against the TARGET ROLE and provide a brutally honest industry gap analysis.
+
+TARGET ROLE: "${targetGoal}"
+
+CANDIDATE'S RESUME:
+"""
+${resumeText.substring(0, 6000)}
+"""
+
+ANALYSIS INSTRUCTIONS:
+1. Compare the candidate's ACTUAL skills, experience, projects, and education from their resume against what TOP companies (Google, Amazon, Microsoft, Meta) require for a "${targetGoal}" role.
+2. Be specific — reference actual items from the resume, not generic advice.
+3. The fitScore should reflect REALITY. A fresh graduate applying for "Senior Architect" should get 15-30%, not 50%.
+
+Return ONLY this JSON (no markdown, no extra text):
+{
+  "fitScore": <number 0-100>,
+  "grade": "<Foundational | Intermediate | Advanced | Elite>",
+  "density": {
+    "architecture": <0-100>,
+    "backend": <0-100>,
+    "aiml": <0-100>,
+    "product": <0-100>
+  },
+  "strengths": ["<3-5 specific strengths found IN the resume>"],
+  "criticalGaps": ["<3-5 specific skills/experience MISSING from the resume for this role>"],
+  "improvements": ["<3-5 actionable steps the candidate should take to close the gap>"],
+  "resumeVsIndustry": "<A 2-3 sentence summary comparing this resume against world-class standards for this role>",
+  "topCompanyFit": {
+    "google": <0-100>,
+    "amazon": <0-100>,
+    "microsoft": <0-100>,
+    "startup": <0-100>
+  }
+}`;
+
     const completion = await groq.chat.completions.create({
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        { role: "system", content: "You are a precision career analytics engine. You output ONLY valid JSON. No markdown. No preamble. Be brutally honest in scoring." },
+        { role: "user", content: prompt }
+      ],
       model: "llama-3.3-70b-versatile",
+      temperature: 0.4,
+      max_tokens: 2048,
     });
+
     const text = completion.choices[0]?.message?.content || "";
-    const clean = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    let clean = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    
+    // Robust JSON extraction
+    const jsonStart = clean.indexOf("{");
+    const jsonEnd = clean.lastIndexOf("}");
+    if (jsonStart !== -1 && jsonEnd !== -1) {
+      clean = clean.substring(jsonStart, jsonEnd + 1);
+    }
+
     res.json(JSON.parse(clean));
   } catch (error) {
-    res.json({ density: { architecture: 50, backend: 50, aiml: 50, product: 50 }, analysis: "Unavailable" });
+    console.error("Skill Assessment Error:", error.message);
+    res.json({
+      fitScore: 0,
+      grade: "Error",
+      density: { architecture: 0, backend: 0, aiml: 0, product: 0 },
+      strengths: ["Unable to analyze at this time"],
+      criticalGaps: ["AI service temporarily unavailable"],
+      improvements: ["Please try again in a few moments"],
+      resumeVsIndustry: "Analysis could not be completed due to a service error.",
+      topCompanyFit: { google: 0, amazon: 0, microsoft: 0, startup: 0 }
+    });
   }
 });
 
