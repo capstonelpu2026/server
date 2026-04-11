@@ -1106,7 +1106,9 @@ export const getMarketIntelligence = asyncHandler(async (req, res) => {
     const groq = getGroqClient();
     const prompt = `You are an elite Career Intelligence AI.
     Analyze the labor market for the role: "${role}" in the region: "${location || 'Global'}".
-    Provide high-fidelity localized industry intelligence including compensation indices, demand velocity, and future growth trajectories for this geography.
+    Provide high-fidelity localized industry intelligence STRICTLY for this geography. DO NOT return data for any other region.
+    If location is "${location}", your response MUST use the local currency (e.g., USD for USA, INR for India) and 2026 salary benchmarks specifically for "${location}".
+    Realistically reflect the current 2026 market conditions.
 
     Crucially, evaluate the provided CANDIDATE RESUME against this specific role to identify actual gaps, needs to improve, and how well they fit.
 
@@ -1115,24 +1117,42 @@ export const getMarketIntelligence = asyncHandler(async (req, res) => {
     ${resumeText.substring(0, 5000)}
     """
     
-    Return ONLY this JSON structure (no extra text):
+    Return ONLY this JSON structure (no extra text). ALL salaries MUST use the LOCAL CURRENCY of "${location || 'Global'}". Use SHORT READABLE formats like "₹8L - ₹15L" or "$80K - $120K" or "£55K - £85K" — NOT full numbers like "₹8,00,000". Be extremely realistic for 2026:
     {
       "demandIndex": "<Extreme | High | Balanced | Selective>",
       "hiringVelocity": "<Rapid | Consistent | Deliberate | Strategic>",
       "yoyGrowth": "<+X% annual growth>",
       "marketSentiment": "<SURGING | EXPANDING | STABLE | CONTRACTING>",
-      "avgSalary": "<Average annual salary with currency, e.g. $120k or ₹25L>",
-      "salaryJunior": "<Junior salary range>",
-      "salaryMid": "<Mid-level salary range>",
-      "salarySenior": "<Senior/Elite salary range>",
-      "topCompanies": ["<List 5 top companies hiring for this role>"],
+      "avgSalary": "<Average salary short format, e.g. ₹18L or $95K>",
+      "salaryJunior": "<Junior salary range short format, e.g. ₹6L - ₹12L>",
+      "salaryMid": "<Mid-level salary range short format>",
+      "salarySenior": "<Senior/Elite salary range short format>",
+      "yourEstimatedSalary": "<Based on THIS candidate's resume skills and experience, estimate THEIR realistic salary range in short format. Be honest and specific.>",
+      "yourSalaryVerdict": "<One short sentence explaining WHY you estimated that salary for this candidate, referencing specific resume strengths or gaps.>",
+      "topCompanies": ["<List 5 top companies hiring for this role in this region>"],
       "topLocations": [
-        { "city": "<City Name>", "description": "<Brief 1-sentence reason why this is a hub>", "demandLevel": "<MAX_DEMAND | HIGH | STEADY>" }
+        { 
+          "city": "e.g. Bengaluru", 
+          "description": "Short tactical summary", 
+          "demandLevel": "<MAX_DEMAND | HIGH | STEADY>",
+          "avgSalary": "<specific range for this city, e.g. ₹15L - ₹22L>",
+          "growth": "<Growth rate in this hub, e.g. +18%>",
+          "companies": ["Comp1", "Comp2", "Comp3"]
+        }
       ],
+      "countryProfile": {
+        "region": "${location || 'Global'}",
+        "currency": "<Local currency symbol, e.g. ₹, $, £, €>",
+        "workVisa": "<Easy | Moderate | Difficult | Not Required>",
+        "remoteAdoption": "<percentage of roles offering remote, e.g. 45%>",
+        "avgExperience": "<Average years of experience employers seek, e.g. 3-5 years>",
+        "topIndustries": ["<Top 3 industries hiring this role in this region>"],
+        "costOfLiving": "<Low | Moderate | High | Very High>"
+      },
       "topSkills": ["<Top 5 required skills missing from candidate's resume>"],
       "marketMomentum": {
         "status": "<Positive | Neutral | Declining>",
-        "trend": "<A 4-5 sentence extremely detailed tactical briefing. Analyze how this specific candidate fits the role, what specific gaps they have according to industry standards, and explicit steps to improve against current market liquidity.>"
+        "trend": "<A 4-5 sentence extremely detailed tactical briefing. Analyze how this specific candidate fits the role in ${location || 'Global'}, what specific gaps they have according to regional industry standards, and explicit steps to improve against current market liquidity.>"
       }
     }`;
 
@@ -1167,7 +1187,7 @@ export const getMarketIntelligence = asyncHandler(async (req, res) => {
  * @route POST /api/ai/career/skills
  */
 export const getSkillAssessment = asyncHandler(async (req, res) => {
-  const { targetGoal } = req.body;
+  const { targetGoal, location } = req.body;
   const resumeFile = req.file;
 
   if (!targetGoal) {
@@ -1219,16 +1239,17 @@ ANALYSIS INSTRUCTIONS:
 1. Compare the candidate's ACTUAL skills, experience, projects, and education from their resume against what TOP companies (Google, Amazon, Microsoft, Meta) require for a "${targetGoal}" role.
 2. Be specific — reference actual items from the resume, not generic advice.
 3. The fitScore should reflect REALITY. A fresh graduate applying for "Senior Architect" should get 15-30%, not 50%.
+4. Identify the 4 most critical technical or professional domains for the target role. Score the candidate out of 100 on each. Use these 4 domain names as the exact keys in the "density" object.
 
 Return ONLY this JSON (no markdown, no extra text):
 {
   "fitScore": <number 0-100>,
   "grade": "<Foundational | Intermediate | Advanced | Elite>",
   "density": {
-    "architecture": <0-100>,
-    "backend": <0-100>,
-    "aiml": <0-100>,
-    "product": <0-100>
+    "<Domain 1 Name e.g. Threat Analysis>": <0-100>,
+    "<Domain 2 Name e.g. Network Security>": <0-100>,
+    "<Domain 3 Name>": <0-100>,
+    "<Domain 4 Name>": <0-100>
   },
   "strengths": ["<3-5 specific strengths found IN the resume>"],
   "criticalGaps": ["<3-5 specific skills/experience MISSING from the resume for this role>"],
@@ -1240,7 +1261,10 @@ Return ONLY this JSON (no markdown, no extra text):
     "microsoft": <0-100>,
     "startup": <0-100>
   }
-}`;
+}
+
+Provide COMPENSTATION ESTIMATES (Base & Upskill Delta) in the local currency or standard format specifically for "${location || 'Global'}".
+`;
 
     const completion = await groq.chat.completions.create({
       messages: [
