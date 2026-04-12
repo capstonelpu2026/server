@@ -59,7 +59,21 @@ const userSchema = new mongoose.Schema(
     points: { type: Number, default: 0 },
     arenaStats: {
         totalXP: { type: Number, default: 0 },
-        solvedChallenges: { type: Number, default: 0 }
+        solvedChallengesCount: { type: Number, default: 0 },
+        currentStreak: { type: Number, default: 0 },
+        maxStreak: { type: Number, default: 0 },
+        lastSolvedDate: { type: String }, // YYYY-MM-DD
+        solvedChallengesList: [{ 
+            challengeId: { type: String },
+            score: { type: Number, default: 0 },
+            feedback: { type: String },
+            complexity: {
+                time: { type: String },
+                space: { type: String }
+            },
+            testCases: { type: Array },
+            solvedAt: { type: Date, default: Date.now }
+        }]
     },
     allowedRoles: {
       type: [String],

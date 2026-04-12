@@ -325,7 +325,7 @@ export const evaluateSolution = asyncHandler(async (req, res) => {
  * @access Private
  */
 export const completeQuest = asyncHandler(async (req, res) => {
-  const { xpEarned, solvedCount } = req.body;
+  const { xpEarned, solvedCount, challengeId, score, evaluation } = req.body;
   const userId = req.user._id;
 
   try {
@@ -336,18 +336,61 @@ export const completeQuest = asyncHandler(async (req, res) => {
 
       // Initialize if missing
       if (!user.arenaStats) {
-          user.arenaStats = { totalXP: 0, solvedChallenges: 0 };
+          user.arenaStats = { totalXP: 0, solvedChallengesCount: 0, solvedChallengesList: [] };
       }
 
       user.arenaStats.totalXP += Number(xpEarned) || 0;
-      user.arenaStats.solvedChallenges += Number(solvedCount) || 0;
+      user.arenaStats.solvedChallengesCount += Number(solvedCount) || 0;
+      
+      // 🔥 STREAK LOGIC
+      const today = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      const lastDate = user.arenaStats.lastSolvedDate;
+
+      if (lastDate !== today) {
+          if (lastDate === yesterday) {
+              user.arenaStats.currentStreak += 1;
+          } else {
+              user.arenaStats.currentStreak = 1;
+          }
+          user.arenaStats.lastSolvedDate = today;
+          
+          if (user.arenaStats.currentStreak > (user.arenaStats.maxStreak || 0)) {
+              user.arenaStats.maxStreak = user.arenaStats.currentStreak;
+          }
+      }
+
+      if (challengeId) {
+          const existingIdx = user.arenaStats.solvedChallengesList.findIndex(item => item.challengeId === challengeId);
+          const solveData = {
+              challengeId,
+              score: Number(score) || 0,
+              feedback: evaluation?.feedback || "",
+              complexity: evaluation?.complexity || { time: "O(?)", space: "O(?)" },
+              testCases: evaluation?.testCaseResults || []
+          };
+
+          if (existingIdx !== -1) {
+              if (Number(score) >= (user.arenaStats.solvedChallengesList[existingIdx].score || 0)) {
+                  user.arenaStats.solvedChallengesList[existingIdx] = {
+                      ...user.arenaStats.solvedChallengesList[existingIdx],
+                      ...solveData
+                  };
+              }
+          } else {
+              user.arenaStats.solvedChallengesList.push(solveData);
+          }
+      }
 
       await user.save();
 
       res.json({
           message: "Arena Mastery Saved",
           totalXP: user.arenaStats.totalXP,
-          solvedChallenges: user.arenaStats.solvedChallenges
+          solvedChallengesCount: user.arenaStats.solvedChallengesCount,
+          currentStreak: user.arenaStats.currentStreak,
+          maxStreak: user.arenaStats.maxStreak,
+          solvedChallengesList: user.arenaStats.solvedChallengesList
       });
   } catch (error) {
       console.error("Save Arena Error:", error);

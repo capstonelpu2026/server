@@ -24,6 +24,23 @@ export const getHackathonsList = asyncHandler(async (req, res) => {
 // @access  Public
 export const getChallengesList = asyncHandler(async (req, res) => {
   const challenges = await getAggregatedChallenges();
+  
+  if (req.user && req.user.arenaStats?.solvedChallengesList) {
+    const solvedData = req.user.arenaStats.solvedChallengesList;
+    const processed = challenges.map(c => {
+      const solvedEntry = solvedData.find(item => item.challengeId === String(c.id));
+      return {
+        ...c,
+        isCompleted: !!solvedEntry,
+        score: solvedEntry ? solvedEntry.score : null,
+        feedback: solvedEntry ? solvedEntry.feedback : null,
+        complexity: solvedEntry ? solvedEntry.complexity : null,
+        testCases: solvedEntry ? solvedEntry.testCases : null
+      };
+    });
+    return res.json(processed);
+  }
+  
   res.json(challenges);
 });
 // @desc    Get single challenge by ID
@@ -31,10 +48,23 @@ export const getChallengesList = asyncHandler(async (req, res) => {
 // @access  Public
 export const getChallengeDetail = asyncHandler(async (req, res) => {
   const challenge = await DailyChallenge.findById(req.params.id);
-  // Also add some default constraints if they are missing
-  if(challenge) {
+  
+  if (challenge) {
     const formatted = challenge.toObject();
-    if(!formatted.constraints) formatted.constraints = ["Optimized time complexity", "Standard memory constraints"];
+    if (!formatted.constraints) formatted.constraints = ["Optimized time complexity", "Standard memory constraints"];
+    
+    // Check if current user has solved this
+    if (req.user && req.user.arenaStats?.solvedChallengesList) {
+      const solvedEntry = req.user.arenaStats.solvedChallengesList.find(item => String(item.challengeId) === String(req.params.id));
+      if (solvedEntry) {
+        formatted.isCompleted = true;
+        formatted.score = solvedEntry.score;
+        formatted.feedback = solvedEntry.feedback;
+        formatted.complexity = solvedEntry.complexity;
+        formatted.testCases = solvedEntry.testCases;
+      }
+    }
+
     return res.json(formatted);
   }
   res.status(404).json({ message: "Challenge not found" });

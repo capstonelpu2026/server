@@ -117,6 +117,57 @@ router.patch("/jobs/:id/close", protect, authorize(["admin", "superadmin"]), asy
 });
 
 /* =====================================================
+   📝 Request Changes for Job
+===================================================== */
+router.patch("/jobs/:id/request-changes", protect, authorize(["admin", "superadmin"]), async (req, res) => {
+  try {
+    const { feedback } = req.body;
+    if (!feedback) return res.status(400).json({ message: "Feedback is required to request changes." });
+
+    const job = await Job.findById(req.params.id).populate("postedBy", "name email");
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    job.status = "changes_requested";
+    job.adminFeedback = feedback;
+    await job.save();
+
+    // 🧾 Audit Log
+    await AuditLog.create({
+      action: "REQUEST_JOB_CHANGES",
+      performedBy: req.user._id,
+      targetUser: job.postedBy ? job.postedBy._id : null,
+      details: `Changes requested for job "${job.title}" by admin ${req.user.email}. Feedback: ${feedback}`,
+    });
+
+    if (job.postedBy) {
+      // ✉️ Notify Recruiter via Email
+      try {
+        await sendEmail(
+          job.postedBy.email,
+          "Action Required: Job Changes Requested - OneStop Hub",
+          `Hello ${job.postedBy.name},\n\nYour job "${job.title}" requires some changes before it can be approved.\n\nAdmin Feedback: "${feedback}"\n\nPlease log in to your dashboard to update the job details.\n\n— OneStop Hub`
+        );
+      } catch (e) { console.error("Email notify error:", e); }
+
+      // 🔔 In-App Notification
+      try {
+        await notifyUser({
+          userId: job.postedBy._id,
+          title: "Changes Requested 📝",
+          message: `Your job "${job.title}" requires changes. Admin feedback: ${feedback}`,
+          type: "job",
+        });
+      } catch (e) { console.error("In-app notify error:", e); }
+    }
+
+    res.json({ message: "Changes requested successfully 📝" });
+  } catch (err) {
+    console.error("Request changes error:", err);
+    res.status(500).json({ message: "Error requesting changes", error: err.message });
+  }
+});
+
+/* =====================================================
    📤 Admin — Notify Candidate Manually (Optional)
 ===================================================== */
 router.post("/jobs/:id/notify-candidate", protect, authorize(["admin", "superadmin"]), async (req, res) => {

@@ -45,6 +45,28 @@ export const protect = async (req, res, next) => {
 };
 
 /* =====================================================
+   🔓 Optional JWT Authentication Middleware
+   Does not error if token is missing or invalid.
+===================================================== */
+export const optionalProtect = async (req, res, next) => {
+  try {
+    let token;
+    if (req.headers.authorization?.startsWith("Bearer ")) {
+      token = req.headers.authorization.split(" ")[1];
+    }
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded && decoded.id) {
+        req.user = await User.findById(decoded.id).select("-password");
+      }
+    }
+    next();
+  } catch (err) {
+    next();
+  }
+};
+
+/* =====================================================
    🛡️ Role-based Access Middleware
    Usage: authorize("admin", "mentor")
 ===================================================== */

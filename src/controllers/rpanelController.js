@@ -211,10 +211,16 @@ export const updateJob = async (req, res) => {
     const job = await Job.findOne({ _id: jobId, postedBy: recruiterId });
     if (!job) return res.status(404).json({ message: "Job not found" });
 
-    const allowedFields = ["title", "description", "skills", "location", "salary", "type", "status", "startDate", "deadline"];
+    const allowedFields = ["title", "description", "skills", "location", "salary", "type", "startDate", "deadline"];
     allowedFields.forEach((field) => {
       if (req.body[field] !== undefined) job[field] = req.body[field];
     });
+
+    // 🔄 Auto-resubmit if changes were requested
+    if (job.status === "changes_requested") {
+      job.status = "pending";
+      job.adminFeedback = null;
+    }
 
     await job.save();
 
