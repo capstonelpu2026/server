@@ -253,14 +253,41 @@ router.get("/public/:id", protect, async (req, res) => {
   }
 });
 
-// ✅ Get Global Leaderboard
+// ✅ Get Universal Strategic Leaderboard
 router.get("/leaderboard", protect, async (req, res) => {
   try {
+    const { type = "global" } = req.query;
+    let sortQuery = { points: -1 };
+    
+    if (type === "arena") {
+       sortQuery = { "arenaStats.totalXP": -1 };
+    } else if (type === "challenges") {
+       sortQuery = { "arenaStats.solvedChallengesCount": -1 };
+    } else if (type === "streak") {
+       sortQuery = { attendanceStreak: -1 };
+    }
+
     const users = await User.find({})
-      .select("name avatar points role attendanceStreak")
-      .sort({ points: -1 })
+      .select("name avatar points role attendanceStreak arenaStats isElite verificationStatus")
+      .sort(sortQuery)
       .limit(50);
-    res.json(users);
+      
+    // Fetch Platform Impact Stats for the top bar
+    const totalUsers = await User.countDocuments({});
+    const totalSolutionsAgg = await User.aggregate([
+      { $group: { _id: null, total: { $sum: "$arenaStats.solvedChallengesCount" } } }
+    ]);
+    const totalSolutions = totalSolutionsAgg[0]?.total || 0;
+    
+    // Simulating Live Stats for the "Studio" feel
+    const platformImpact = {
+      totalUsers,
+      totalSolutions,
+      activePulse: Math.floor(Math.random() * 50) + 120, // Real-time coding pulse simulation
+      uptime: "99.9%"
+    };
+
+    res.json({ users, impact: platformImpact });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error fetching leaderboard" });
