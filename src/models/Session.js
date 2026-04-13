@@ -13,7 +13,7 @@ const sessionSchema = new mongoose.Schema(
     meetingLink: { type: String, default: "" },
     status: {
       type: String,
-      enum: ["pending", "confirmed", "completed", "cancelled"],
+      enum: ["pending", "confirmed", "completed", "cancelled", "expired"],
       default: "pending",
     },
     paymentStatus: {
@@ -24,6 +24,7 @@ const sessionSchema = new mongoose.Schema(
     notes: { type: String, default: "" },
     rating: { type: Number, default: 0 },
     review: { type: String, default: "" },
+    cancellationReason: { type: String, default: "" },
   },
   { timestamps: true }
 );

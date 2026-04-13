@@ -240,10 +240,12 @@ import { initCronJobs } from "./cron/aiContestCron.js";
 import { initContestReminderCron } from "./cron/contestReminderCron.js";
 import { initDailyChallengeCron } from "./cron/dailyChallengeCron.js";
 import { initVerificationCron } from "./cron/verificationCron.js";
+import { initSessionExpiryCron } from "./cron/sessionExpiryCron.js";
 initCronJobs();
 initContestReminderCron();
 initDailyChallengeCron();
 initVerificationCron();
+initSessionExpiryCron();
 
 const server = http.createServer(app);
 initSocket(server);

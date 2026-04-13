@@ -330,7 +330,7 @@ export const getMySessions = async (req, res) => {
 // 📌 Update Session Status
 export const updateSessionStatus = async (req, res) => {
   try {
-    const { status, meetingLink } = req.body; // status: confirmed, completed, cancelled
+    const { status, meetingLink, reason } = req.body; // status: confirmed, completed, cancelled
     const session = await Session.findById(req.params.id).populate("mentee", "name email").populate("mentor", "name email");
 
     if (!session) return res.status(404).json({ message: "Session not found" });
@@ -351,6 +351,7 @@ export const updateSessionStatus = async (req, res) => {
 
     session.status = status;
     if (meetingLink) session.meetingLink = meetingLink;
+    if (reason) session.cancellationReason = reason;
     
     await session.save();
 
@@ -375,9 +376,16 @@ export const updateSessionStatus = async (req, res) => {
     } else if (status === "cancelled") {
        emailSubject = "❌ Session Cancelled";
        emailHtml = `
-         <h2>Session Cancelled</h2>
-         <p>The session for <strong>${session.serviceTitle}</strong> on ${new Date(session.scheduledDate).toDateString()} has been cancelled by ${req.user.name}.</p>
-         <p>Reason/Change of plans.</p>
+         <div style="font-family: sans-serif; color: #1f2937;">
+            <h2 style="color: #ef4444;">Session Cancelled</h2>
+            <p>The session for <strong>${session.serviceTitle}</strong> on ${new Date(session.scheduledDate).toDateString()} has been cancelled by ${req.user.name}.</p>
+            <div style="background: #fee2e2; border-left: 4px solid #ef4444; padding: 15px; margin: 15px 0;">
+               <p style="margin: 0; font-weight: bold; color: #991b1b;">Reason from Mentor:</p>
+               <p style="margin: 5px 0 0; font-style: italic;">"${reason || "Personal emergency / Scheduling conflict"}"</p>
+            </div>
+            <p>We apologize for the inconvenience. You can browse other experts or reschedule at a later time.</p>
+            <a href="http://localhost:5173/mentors" style="display: inline-block; padding: 10px 20px; background: #2563EB; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Find Another Mentor</a>
+         </div>
        `;
     } else if (status === "completed") {
        emailSubject = "🎉 Session Completed";
@@ -399,6 +407,29 @@ export const updateSessionStatus = async (req, res) => {
        emailSubject,
        emailHtml
     });
+
+    // 💬 Auto-send chat message on Cancellation
+    if (status === 'cancelled') {
+       try {
+          const pair = [session.mentor?._id?.toString(), session.mentee?._id?.toString()].filter(Boolean).sort();
+          if (pair.length === 2) {
+             let conv = await Conversation.findOne({ participants: { $all: pair, $size: 2 } });
+             if (conv) {
+                await Message.create({
+                   conversation: conv._id,
+                   from: req.user._id,
+                   to: targetUser._id,
+                   body: `⚠️ *MENTORSHIP SESSION ABORTED* \n\n**Service:** ${session.serviceTitle} \n**Intel:** ${reason || "Mission aborted by operative."}\n\n*Log updated automatically.*`,
+                   status: 'delivered'
+                });
+                conv.lastMessageAt = new Date();
+                await conv.save();
+             }
+          }
+       } catch (chatError) {
+          console.error("Failed to send auto-cancellation message:", chatError);
+       }
+    }
 
     res.json(session);
   } catch (err) {
