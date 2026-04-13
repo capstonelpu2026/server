@@ -222,17 +222,18 @@ export const applyToJob = asyncHandler(async (req, res) => {
     emailSubject: "Application Submitted - OneStop Hub",
   }).catch(err => console.error("Candidate notify error:", err));
 
-  // 🔔 Notify Recruiter
+  // 🔔 Notify Recruiter (Insight-Driven)
   const recruiter = await User.findById(job.postedBy).select("_id email");
   if (recruiter) {
     notifyUser({
       userId: recruiter._id,
       email: recruiter.email,
-      title: "New Application Received 👤",
-      message: `${req.user.name} applied for your job "${job.title}".`,
+      title: "New Strategic Match! 👤",
+      message: `${req.user.name} applied for "${job.title}". AI Intel Score: ${atsScore}% (${atsVerdict}). Review their digital resume now!`,
       link: `/rpanel/jobs/${job._id}/applications`,
       type: "candidate",
-      emailSubject: `New Application - ${job.title}`,
+      emailEnabled: true, 
+      emailSubject: `New Match for ${job.title} — ATS Score: ${atsScore}%`,
     }).catch(err => console.error("Recruiter notify error:", err));
   }
 

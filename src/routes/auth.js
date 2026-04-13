@@ -9,6 +9,7 @@ import AuditLog from "../models/AuditLog.js";
 import { protect } from "../middleware/auth.js";
 import { authorize } from "../middleware/authorize.js";
 import { sendEmail } from "../utils/sendEmail.js";
+import { notifyUser } from "../utils/notifyUser.js";
 import { CLIENT_URL } from "../config/env.js";
 import multer from "multer";
 import cloudinary from "../utils/cloudinary.js";
@@ -72,6 +73,18 @@ router.post("/register-candidate", async (req, res) => {
       performedBy: user._id,
       details: `New candidate joined the platform (${user.email})`,
     });
+
+    // 📩 FAANG-Style Welcome Automation
+    notifyUser({
+      userId: user._id,
+      email: user.email,
+      title: "Welcome to OneStop Hub! 🚀",
+      message: `Hello ${user.name}, you've just joined India's most strategic career intelligence platform. Start by completing your profile to unlock higher ATS scores and climb the global leaderboard!`,
+      link: "/candidate/profile",
+      type: "system",
+      emailEnabled: true,
+      emailSubject: "Welcome to the OneStop Strategic Network! 💎",
+    }).catch(err => console.error("Welcome email failed:", err));
 
     res.status(201).json({
       message: "Candidate registered successfully ✅",
