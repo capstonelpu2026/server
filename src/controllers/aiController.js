@@ -1494,3 +1494,55 @@ export const matchMentors = asyncHandler(async (req, res) => {
     });
   }
 });
+
+/**
+ * @desc Refine/Polish user-written text (fix grammar, improve English)
+ * @route POST /api/ai/refine-text
+ * @access Public
+ */
+export const refineText = asyncHandler(async (req, res) => {
+  const { text, context = "professional bio" } = req.body;
+
+  if (!text || text.trim().length < 5) {
+    res.status(400);
+    throw new Error("Text is too short to refine.");
+  }
+
+  try {
+    const groq = getGroqClient();
+
+    const prompt = `
+      You are an expert English editor. A user has written the following text for their ${context}.
+      Their English may be informal, grammatically incorrect, or unclear.
+
+      Your task:
+      1. Fix ALL grammar and spelling mistakes.
+      2. Improve sentence structure and flow for professional clarity.
+      3. Make the tone confident and professional.
+      4. PRESERVE the original meaning and intent — do NOT add new facts or embellish.
+      5. Keep the length similar to the original (don't drastically expand or shrink it).
+
+      User's Original Text:
+      "${text}"
+
+      Return ONLY the refined text as a plain string. No explanation, no preamble, no quotes around the output.
+    `;
+
+    const completion = await groq.chat.completions.create({
+      messages: [
+        { role: "system", content: "You are a precise English editor. Return ONLY the refined text with no extra commentary." },
+        { role: "user", content: prompt }
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.3,
+      max_tokens: 512
+    });
+
+    const refined = completion.choices[0]?.message?.content?.trim() || text;
+    res.json({ refined });
+
+  } catch (error) {
+    console.error("Refine Text Error:", error.message);
+    res.status(500).json({ message: "AI refinement failed. Please try again." });
+  }
+});

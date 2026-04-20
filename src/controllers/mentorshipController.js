@@ -155,6 +155,14 @@ export const bookSession = async (req, res) => {
     const mentor = await User.findById(mentorId);
     if (!mentor || mentor.role !== "mentor") return res.status(404).json({ message: "Mentor not found" });
 
+    // 🛡️ Prevent Scheduling in the Past
+    const bookingDate = new Date(scheduledDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (bookingDate < today) {
+       return res.status(400).json({ message: "Cannot book a session for a past date." });
+    }
+
     // 🛡️ Verify Slot is actually in Mentor's Availability
     const dayName = new Date(scheduledDate).toLocaleDateString('en-US', { weekday: 'long' });
     const dayAvailability = mentor.mentorProfile?.availability?.find(d => d.day === dayName);
@@ -290,6 +298,11 @@ export const reviewSession = async (req, res) => {
       return res.status(400).json({ message: "Can only review completed sessions" });
     }
 
+    // 🛡️ Prevent Multiple Submissions (Overwrite Loophole)
+    if (session.rating > 0) {
+      return res.status(400).json({ message: "You have already reviewed this session." });
+    }
+
     session.rating = rating;
     session.review = review;
     await session.save();
@@ -349,8 +362,38 @@ export const updateSessionStatus = async (req, res) => {
        return res.status(403).json({ message: "Candidates can only cancel sessions." });
     }
 
+    // 🛡️ Enforce Strict State Transitions
+    if (session.status === "cancelled") {
+       return res.status(400).json({ message: "Session is already cancelled. State cannot be modified." });
+    }
+    if (session.status === "completed") {
+       return res.status(400).json({ message: "Session is already completed. State cannot be modified." });
+    }
+    if (status === "completed" && session.status !== "confirmed") {
+       return res.status(400).json({ message: "A session must be confirmed before it can be marked as completed." });
+    }
+
+    // 🛡️ Prevent Double-Booking Collision for Mentors Confirming
+    if (status === "confirmed") {
+       const slotTaken = await Session.findOne({
+          mentor: session.mentor._id,
+          scheduledDate: session.scheduledDate,
+          scheduledTime: session.scheduledTime,
+          status: "confirmed"
+       });
+       if (slotTaken) {
+          return res.status(400).json({ message: "You already have a confirmed session for this time slot." });
+       }
+    }
+
+    // 🛡️ Prevent Meeting Link Exfiltration on Cancellation
+    if (status === "cancelled") {
+       session.meetingLink = "";
+    } else if (meetingLink) {
+       session.meetingLink = meetingLink;
+    }
+
     session.status = status;
-    if (meetingLink) session.meetingLink = meetingLink;
     if (reason) session.cancellationReason = reason;
     
     await session.save();
@@ -510,6 +553,12 @@ export const requestWithdrawal = async (req, res) => {
 
       if (!amount || amount < 500) {
          return res.status(400).json({ message: "Minimum withdrawal amount is ₹500" });
+      }
+
+      // 🛡️ Prevent Concurrent Requests & Limit to 1 Pending Withdrawal
+      const pendingRequest = await Withdrawal.findOne({ mentor: mentorId, status: "pending" });
+      if (pendingRequest) {
+         return res.status(400).json({ message: "You already have a pending withdrawal request. Please wait for it to be processed." });
       }
 
       // 1. Calculate Total Earnings from Completed Sessions
