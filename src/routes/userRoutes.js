@@ -144,8 +144,105 @@ router.post("/upload-doc", protect, uploadCloud.single("file"), async (req, res)
   }
 });
 
+// ✅ Mark Challenge as Solved — Updates streak, XP, and solve history
+router.post("/me/challenges/solve", protect, async (req, res) => {
+  try {
+    const { challengeId, score = 0, feedback = "", complexity = {}, testCases = [] } = req.body;
+    if (!challengeId) return res.status(400).json({ message: "challengeId is required" });
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // ── Initialise arenaStats if missing ──
+    if (!user.arenaStats) user.arenaStats = {};
+    const stats = user.arenaStats;
+    stats.totalXP = stats.totalXP || 0;
+    stats.solvedChallengesCount = stats.solvedChallengesCount || 0;
+    stats.currentStreak = stats.currentStreak || 0;
+    stats.maxStreak = stats.maxStreak || 0;
+    if (!stats.solvedChallengesList) stats.solvedChallengesList = [];
+
+    // ── Prevent re-solve of the same challenge ──
+    const alreadySolved = stats.solvedChallengesList.some(
+      (s) => s.challengeId === challengeId
+    );
+    if (alreadySolved) {
+      return res.json({
+        message: "Challenge already completed! Keep going to maintain your streak.",
+        alreadySolved: true,
+        arenaStats: user.arenaStats,
+        user: user.toJSON()
+      });
+    }
+
+    // ── Date-based streak logic (IST-aware) ──
+    const nowIST = new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000);
+    const todayStr = nowIST.toISOString().split("T")[0]; // "YYYY-MM-DD"
+    const lastDate = stats.lastSolvedDate; // "YYYY-MM-DD" or undefined
+
+    if (!lastDate) {
+      // First ever solve
+      stats.currentStreak = 1;
+    } else if (lastDate === todayStr) {
+      // Same day — solved another challenge today, streak stays the same
+      // (streak increments only once per day)
+    } else {
+      // Check if yesterday
+      const yesterday = new Date(nowIST);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+      if (lastDate === yesterdayStr) {
+        // Consecutive day — extend streak
+        stats.currentStreak += 1;
+      } else {
+        // Streak broken — reset to 1
+        stats.currentStreak = 1;
+      }
+    }
+
+    // Update lastSolvedDate
+    stats.lastSolvedDate = todayStr;
+
+    // Update max streak
+    if (stats.currentStreak > stats.maxStreak) {
+      stats.maxStreak = stats.currentStreak;
+    }
+
+    // ── Award XP ──
+    const xpEarned = Math.max(10, Math.min(100, score)); // 10–100 XP per challenge
+    stats.totalXP += xpEarned;
+    stats.solvedChallengesCount += 1;
+    user.points = (user.points || 0) + xpEarned;
+
+    // ── Record the solve ──
+    stats.solvedChallengesList.push({
+      challengeId,
+      score,
+      feedback,
+      complexity,
+      testCases,
+      solvedAt: new Date()
+    });
+
+    user.arenaStats = stats;
+    await user.save();
+
+    res.json({
+      message: `Challenge solved! 🎯 +${xpEarned} XP`,
+      xpEarned,
+      arenaStats: user.arenaStats,
+      user: user.toJSON()
+    });
+  } catch (err) {
+    console.error("Challenge solve error:", err);
+    res.status(500).json({ message: "Failed to record challenge solve" });
+  }
+});
+
 // ✅ Daily Attendance Check-in
 router.post("/me/check-in", protect, async (req, res) => {
+
   try {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -253,6 +350,28 @@ router.get("/public/:id", protect, async (req, res) => {
   }
 });
 
+// ✅ Get Full Profile by ID (Public view for Admins/Recruiters/Mentors)
+router.get("/:id/profile", protect, async (req, res) => {
+  try {
+    // Do NOT use .lean() — virtuals like performanceScore require full Mongoose document
+    const user = await User.findById(req.params.id)
+      .select("-password -loginHistory -resetPasswordToken -resetPasswordExpire");
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Convert to plain object (includes virtuals due to toJSON: { virtuals: true })
+    const userObj = user.toJSON();
+
+    // Explicitly compute and inject performanceScore as a guaranteed field
+    // Formula: points + (attendanceStreak × 100) + (isElite ? 1000 : 0)
+    userObj.performanceScore = (user.points || 0) + (user.attendanceStreak || 0) * 100 + (user.isElite ? 1000 : 0);
+
+    res.json(userObj);
+  } catch (err) {
+    console.error("Fetch profile error:", err);
+    res.status(500).json({ message: "Error fetching profile" });
+  }
+});
+
 // ✅ Get Universal Strategic Leaderboard
 router.get("/leaderboard", protect, async (req, res) => {
   try {
@@ -295,18 +414,24 @@ router.get("/leaderboard", protect, async (req, res) => {
 });
 
 // ✅ Get all users
-router.get("/", protect, authorize(["admin", "superadmin"]), async (req, res) => {
+router.get("/", protect, authorize(["admin", "superadmin", "recruiter", "mentor"]), async (req, res) => {
   try {
-    const { search = "" } = req.query;
-    const query = search
-      ? {
-          $or: [
-            { name: { $regex: search, $options: "i" } },
-            { email: { $regex: search, $options: "i" } },
-          ],
-        }
-      : {};
-    const users = await User.find(query).select("-password").limit(100);
+    const { search = "", role } = req.query;
+    const query = {};
+
+    // Filter by role if provided
+    if (role) query.role = role;
+
+    // Filter by search term
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Do NOT use .lean() — virtuals like performanceScore require full Mongoose documents
+    const users = await User.find(query).select("-password").limit(200);
     res.json(users);
   } catch (err) {
     console.error("Fetch users error:", err);

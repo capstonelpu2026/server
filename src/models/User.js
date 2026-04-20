@@ -292,8 +292,20 @@ const userSchema = new mongoose.Schema(
     averageMentorRating: { type: Number, default: 0 },
     totalReviews: { type: Number, default: 0 },
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+  }
 );
+
+/* 📊 Virtual Performance Score Calculation */
+userSchema.virtual("performanceScore").get(function() {
+  const points = this.points || 0;
+  const streakBonus = (this.attendanceStreak || 0) * 100;
+  const eliteBonus = this.isElite ? 1000 : 0;
+  return points + streakBonus + eliteBonus;
+});
 
 /* 🧩 Role & Authorization Normalization */
 userSchema.pre("save", function (next) {

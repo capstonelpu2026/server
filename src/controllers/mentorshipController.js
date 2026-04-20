@@ -534,7 +534,7 @@ export const getMentorStats = async (req, res) => {
          hours: (data.totalMinutes / 60).toFixed(1),
          sessions: data.completedSessions,
          pending: pendingRequests,
-         aura: auraScore,
+         performanceScore: auraScore,
          withdrawn: totalWithdrawn,
          nextPayout: payoutDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
          payoutProgress: Math.min(progress, 100)

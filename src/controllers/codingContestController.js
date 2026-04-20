@@ -1,5 +1,6 @@
 import CodingContest from "../models/CodingContest.js";
 import AuditLog from "../models/AuditLog.js";
+import User from "../models/User.js"; // ✅ required for gamification XP award
 import cloudinary from "../utils/cloudinary.js";
 import multer from "multer";
 import Groq from "groq-sdk";
@@ -563,16 +564,19 @@ export const getLeaderboard = async (req, res) => {
       });
 
     const leaderboard = sorted.map((p, idx) => ({
-      rank:        idx + 1,
-      userId:      p.userId,
-      name:        p.name,
-      email:       p.email,
-      totalScore:  p.totalScore,
-      solvedCount: p.solvedCount,
-      attemptCount: p.submissions?.length || 0,
-      joinedAt:    p.joinedAt,
-      // Proctoring fields
-      violationLogs:  p.violationLogs || [],
+      rank:           idx + 1,
+      userId:         p.userId,
+      name:           p.name,
+      email:          p.email,
+      totalScore:     p.totalScore,
+      solvedCount:    p.solvedCount,
+      attemptCount:   p.submissions?.length || 0,
+      joinedAt:       p.joinedAt,
+      // ✅ Proctoring & integrity fields (required by Admin dashboard)
+      violationCount:      p.violationCount || 0,
+      isDisqualified:      p.isDisqualified || false,
+      warningSent:         p.warningSent || false,
+      violationLogs:       p.violationLogs || [],
       certificateUniqueId: p.certificateUniqueId || null,
     }));
 
