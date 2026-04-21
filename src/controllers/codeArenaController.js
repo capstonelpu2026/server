@@ -2,6 +2,7 @@ import Groq from "groq-sdk";
 import asyncHandler from "express-async-handler";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import User from "../models/User.js";
+import { parseAIJson } from "../utils/parseAIJson.js";
 
 const getGroqClient = () => {
   if (!process.env.GROQ_API_KEY) {
@@ -113,7 +114,7 @@ export const generateContestMeta = asyncHandler(async (req, res) => {
             text = result.response.text();
         }
 
-        const meta = extractJSON(text, false);
+        const meta = parseAIJson(text);
         res.json({ meta });
 
     } catch (error) {
@@ -182,7 +183,7 @@ export const generateProblems = asyncHandler(async (req, res) => {
         text = result.response.text();
     }
     
-    const problems = extractJSON(text, true);
+    const problems = parseAIJson(text);
     res.json({ problems });
 
   } catch (error) {
@@ -248,50 +249,53 @@ export const generateProblems = asyncHandler(async (req, res) => {
 export const evaluateSolution = asyncHandler(async (req, res) => {
   const { problem, code, language = "JavaScript" } = req.body;
 
+  let text = "";
   try {
-    const groq = getGroqClient();
     const prompt = `
-      Act as a Lead Technical Interviewer and Code Quality Auditor.
-      
+      You are an expert programming judge. Evaluate the correctness of the submitted code.
+
       Problem Title: ${problem.title}
-      Problem Description: ${problem.description}
-      Expected Language: ${language}
-      
-      Candidate Code Submitted:
-      \`\`\`${language}
+      Problem Statement: ${problem.description || problem.scenario || ''}
+      ${problem.task ? 'Task: ' + problem.task : ''}
+      Submitted Language Selected by Candidate: ${language}
+
+      Candidate's Code:
+      \`\`\`
       ${code}
       \`\`\`
-      
-      Strict Test Cases to Validate: ${JSON.stringify(problem.testCases)}
-      
-      Evaluation Guidelines:
-      1. CRITICAL: If the code is written in a language OTHER than ${language}, mark all test cases as "failed" with actual output set to "Error: Language Mismatch".
-      2. CRITICAL: If the code has a syntax error that would prevent execution, mark as "failed" with actual output set to the specific compiler/runtime error.
-      3. LOGIC: Compare the candidate's logic against the test cases. Be extremely precise with output comparison.
-      
-      Return ONLY a clean JSON object with this structure:
+
+      Test Cases (you MUST evaluate EVERY one of these):
+      ${JSON.stringify(problem.testCases, null, 2)}
+
+      EVALUATION RULES:
+      1. Carefully trace / mentally execute the code against each test case.
+      2. Focus purely on LOGIC and CORRECTNESS. Do not penalise for language naming or style.
+      3. If the code is empty or contains only placeholder comments with no logic, mark ALL cases as failed with actual = "No implementation submitted".
+      4. If there is an obvious syntax error, mark ALL cases as failed with actual = the specific error message.
+      5. Otherwise, determine the actual output for each case and set passed = true ONLY when actual exactly matches expected.
+      6. MANDATORY: You MUST include one entry per test case in testCaseResults. Never return an empty array.
+
+      Return ONLY valid JSON. No markdown. No explanation outside the JSON. Use this exact structure:
       {
         "status": "Accepted" | "Rejected" | "Partial",
-        "score": number (0-100),
+        "score": <integer 0 to 100>,
         "complexity": { "time": "O(...)", "space": "O(...)" },
-        "feedback": "A concise professional summary of the submission.",
-        "bugs": ["List any logical flaws or edge cases they missed"],
-        "efficiencyTips": ["How to optimize the Big O complexity or code readability"],
+        "feedback": "<concise professional summary of the submission>",
+        "bugs": ["<logical flaw or missed edge case, or empty array if none>"],
+        "efficiencyTips": ["<optimisation suggestion, or empty array if none>"],
         "testCaseResults": [
-            { "input": "...", "expected": "...", "actual": "...", "passed": boolean }
+          { "input": "<test input string>", "expected": "<expected output string>", "actual": "<actual output from running the code>", "passed": true }
         ]
-      }
-    `;
+      }`;
 
-    let text = "";
-    
+
     try {
         const groq = getGroqClient();
         const chatCompletion = await groq.chat.completions.create({
           messages: [{ role: "user", content: prompt }],
           model: "llama-3.3-70b-versatile",
-          temperature: 0.4,
-          max_tokens: 2048,
+          temperature: 0.3,
+          max_tokens: 4096,
         });
         text = chatCompletion.choices[0]?.message?.content || "";
     } catch (groqError) {
@@ -302,19 +306,26 @@ export const evaluateSolution = asyncHandler(async (req, res) => {
         text = result.response.text();
     }
     
-    const evaluation = extractJSON(text, false);
+    const evaluation = parseAIJson(text);
     res.json(evaluation);
 
   } catch (error) {
     console.error("Code Arena Evaluation Error:", error.message, error.stack);
+    // Build testCaseResults from the problem's own test cases so the UI always shows something
+    const fallbackTestResults = (problem?.testCases || []).map(tc => ({
+        input: typeof tc.input === 'object' ? JSON.stringify(tc.input) : (tc.input || 'N/A'),
+        expected: typeof tc.output === 'object' ? JSON.stringify(tc.output) : (tc.output || tc.expected || 'N/A'),
+        actual: `Error: AI Judge unavailable — ${error.message?.slice(0, 80) || 'Try again'}`,
+        passed: false
+    }));
     res.json({ 
         status: "Rejected",
         score: 0,
         complexity: { time: "O(?)", space: "O(?)" },
-        feedback: "The AI Judge is temporarily unavailable to grade this submission.",
-        bugs: ["Evaluation failed due to network overload.", `Engine Error: ${error.message}`],
-        efficiencyTips: ["Please try submitting again in a moment.", text ? `Engine output: ${text.substring(0, 100)}` : ""],
-        testCaseResults: []
+        feedback: "The AI Judge encountered an error grading this submission. Please try again.",
+        bugs: [`Engine Error: ${error.message}`],
+        efficiencyTips: ["Please try submitting again in a moment."],
+        testCaseResults: fallbackTestResults
     });
   }
 });
