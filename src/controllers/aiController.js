@@ -41,18 +41,9 @@ export const generateQuestions = asyncHandler(async (req, res) => {
   // Prioritize "count" from UI, fallback to "duration" calculation
   const totalQuestions = count ? parseInt(count) : Math.max(3, Math.floor(parseInt(duration) / 2));
   
-  // Calculate ratios: Professional interviews should have fewer/no MCQs unless it's a "Mixed" focus
-  // For "Technical Only" or "Behavioral", we skew heavily towards open-ended text questions
-  let textualCount;
-  if (focus === "Technical Only" || focus === "System Design") {
-      textualCount = totalQuestions; // 100% Textual for high-fidelity technical interviews
-  } else if (focus === "HR & Behavioral") {
-      textualCount = totalQuestions; // 100% Textual for behavioral
-  } else {
-      // "Mixed" or others: 80% Textual, 20% MCQ (minimum 1 MCQ if total > 3)
-      textualCount = Math.max(1, Math.ceil(totalQuestions * 0.8));
-  }
-  const mcqCount = totalQuestions - textualCount;
+  // All interviews are now 100% textual for high-fidelity professional experience
+  const textualCount = totalQuestions;
+  const mcqCount = 0;
 
   if (!process.env.GROQ_API_KEY) {
     console.warn("⚠️ GROQ_API_KEY missing. Using professional fallback interview questions.");
@@ -60,10 +51,9 @@ export const generateQuestions = asyncHandler(async (req, res) => {
       { type: "text", question: `Explain how you would architect a scalable system for ${company} if you were hired as a ${role}.` },
       { type: "text", question: "Can you walk me through a complex technical challenge where you had to make a trade-off between speed and maintainability?" },
       { type: "text", question: `How do you stay updated with the latest trends in ${topic} and how do you apply them to your current workflow?` },
-      { type: "mcq", question: "In a microservices architecture, which pattern is primarily used to ensure data consistency across multiple services?", options: ["Saga Pattern", "Single Database Pattern", "Direct API Calling", "Shared Memory"], answer: "Saga Pattern" },
       { type: "text", question: `Describe your experience with CI/CD pipelines and how you ensure code quality in a high-velocity environment like ${company}.` },
       { type: "text", question: "Describe a time you had to lead a project under extreme pressure. What was the outcome?" },
-      { type: "mcq", question: "Which of the following is a primary characteristic of a RESTful API?", options: ["Statelessness", "WebSocket connection", "Required XML format", "Tight coupling"], answer: "Statelessness" }
+      { type: "text", question: `What are your strategies for managing technical debt in a fast-paced development cycle at a company like ${company}?` }
     ];
     // Scale fallback to match requested count
     const scaledFallbacks = Array.from({ length: totalQuestions }).map((_, i) => fallbacks[i % fallbacks.length]);
@@ -86,19 +76,18 @@ export const generateQuestions = asyncHandler(async (req, res) => {
       - Persona Tone: ${personality}.
       
       RULES FOR QUALITY:
-      - If focus is "Technical Only", ask deep technical/architectural questions. NO basic questions.
+      - All questions MUST be open-ended and high-fidelity. NO multiple choice questions.
+      - If focus is "Technical Only", ask deep technical/architectural questions.
       - If focus is "HR & Behavioral", focus on leadership and STAR-method questions.
-      - MCQs should ONLY be included if focus is "Mixed" and must be ADVANCED concepts.
       
       STRICT FORMATTING (SAVE TOKENS):
-      - Return ${textualCount} "text" and ${mcqCount} "mcq" questions.
+      - Return ONLY "text" questions.
       - Be concise in question text to avoid truncation.
       - Return ONLY a raw JSON array. No markdown, no intro/outro.
       
       JSON TEMPLATE:
       [
-        { "type": "text", "question": "..." },
-        { "type": "mcq", "question": "...", "options": ["A", "B", "C", "D"], "answer": "Answer Text" }
+        { "type": "text", "question": "..." }
       ]
     `;
 
