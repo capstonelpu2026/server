@@ -33,6 +33,17 @@ const router = express.Router();
 // Get all events (with filtering, pagination, category)
 router.get("/", getEvents);
 
+// Get user's own registrations (MUST BE BEFORE /:id)
+router.get("/my/registrations", protect, listMyRegistrations);
+
+// Admin metrics (MUST BE BEFORE /:id)
+router.get(
+  "/admin/metrics",
+  protect,
+  authorize("admin", "superadmin"),
+  eventAdminMetrics
+);
+
 // Get single event by ID
 router.get("/:id", getEventById);
 
@@ -64,8 +75,7 @@ router.post(
   uploadSubmission
 );
 
-// Get user's own registrations
-router.get("/my/registrations", protect, listMyRegistrations);
+
 
 // Email certificate to user
 router.post("/:id/email-certificate", protect, emailCertificate);
@@ -124,13 +134,7 @@ router.get(
   getEventRegistrations
 );
 
-// Admin metrics
-router.get(
-  "/admin/metrics",
-  protect,
-  authorize("admin", "superadmin"),
-  eventAdminMetrics
-);
+
 
 /* =====================================================
    🎯 QUIZ MANAGEMENT (Admin)

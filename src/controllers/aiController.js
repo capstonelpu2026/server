@@ -1296,18 +1296,38 @@ Provide COMPENSTATION ESTIMATES (Base & Upskill Delta) in the local currency or 
  * @route POST /api/ai/event-description
  */
 export const generateEventDescription = asyncHandler(async (req, res) => {
-  const { title, type } = req.body;
+  const { title, category, organizer, location } = req.body;
   try {
     const groq = getGroqClient();
-    const prompt = `Generate a professional description for a ${type} event titled "${title}". 
-    Format as JSON: { "description": "" }`;
+    const prompt = `Generate a professional, highly engaging 3-4 paragraph description for a ${category || 'tech'} event titled "${title}". 
+    ${organizer ? `The event is organized by ${organizer}.` : ''}
+    ${location ? `It will be held at/in: ${location}.` : ''}
+    Write it in a compelling, corporate tone.
+    Return ONLY a valid JSON object matching this structure: 
+    { "description": "The detailed event description..." }`;
+    
     const completion = await groq.chat.completions.create({
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        { role: "system", content: "You return strictly valid JSON objects only. No preamble, no markdown tags." },
+        { role: "user", content: prompt }
+      ],
       model: "llama-3.3-70b-versatile",
+      temperature: 0.6,
+      response_format: { type: "json_object" }
     });
-    res.json(JSON.parse(completion.choices[0]?.message?.content || "{}"));
+
+    let text = completion.choices[0]?.message?.content || "{}";
+    
+    const parsed = JSON.parse(text);
+    if (!parsed.description) {
+      throw new Error("Missing description in AI response");
+    }
+
+    res.json(parsed);
   } catch (error) {
-    res.json({ description: `Join us for our ${title} event!` });
+    console.error("Event Gen Error:", error.message || error);
+    // Even if it fails, return something better than a 1-liner
+    res.json({ description: `${title} is a premier ${category || 'event'} designed to bring together top talent, industry leaders, and innovators.\n\nJoin us for an incredible experience where you can network, learn, and showcase your skills.\n\nDon't miss out on this opportunity!` });
   }
 });
 
